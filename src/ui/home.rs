@@ -32,29 +32,61 @@ pub fn render_home(frame: &mut Frame, app: &App) {
 
     // Status panel
     let kc_indicator = if app.keycloak_running { "●" } else { "○" };
-    let kc_status = if app.keycloak_running { "Running" } else { "Not installed" };
-    let kc_color = if app.keycloak_running { Color::Green } else { Color::DarkGray };
+    let kc_status = if app.keycloak_running {
+        "Running"
+    } else {
+        "Not installed"
+    };
+    let kc_color = if app.keycloak_running {
+        Color::Green
+    } else {
+        Color::DarkGray
+    };
 
     let portal_indicator = if app.portal_running { "●" } else { "○" };
-    let portal_status = if app.portal_running { "Running" } else { "Not installed" };
-    let portal_color = if app.portal_running { Color::Green } else { Color::DarkGray };
+    let portal_status = if app.portal_running {
+        "Running"
+    } else {
+        "Not installed"
+    };
+    let portal_color = if app.portal_running {
+        Color::Green
+    } else {
+        Color::DarkGray
+    };
 
     let status_lines = vec![
         Line::from(""),
         Line::from(vec![
             Span::raw("  "),
-            Span::styled(kc_indicator, Style::default().fg(kc_color).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                kc_indicator,
+                Style::default().fg(kc_color).add_modifier(Modifier::BOLD),
+            ),
             Span::raw("  "),
             Span::styled("Keycloak   ", Style::default().fg(Color::White)),
-            Span::styled(kc_status, Style::default().fg(kc_color).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                kc_status,
+                Style::default().fg(kc_color).add_modifier(Modifier::BOLD),
+            ),
         ]),
         Line::from(""),
         Line::from(vec![
             Span::raw("  "),
-            Span::styled(portal_indicator, Style::default().fg(portal_color).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                portal_indicator,
+                Style::default()
+                    .fg(portal_color)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw("  "),
             Span::styled("Portal     ", Style::default().fg(Color::White)),
-            Span::styled(portal_status, Style::default().fg(portal_color).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                portal_status,
+                Style::default()
+                    .fg(portal_color)
+                    .add_modifier(Modifier::BOLD),
+            ),
         ]),
     ];
 
@@ -63,7 +95,11 @@ pub fn render_home(frame: &mut Frame, app: &App) {
             .borders(Borders::ALL)
             .border_style(Style::default().fg(get_orange_accent()))
             .title("Service Status")
-            .title_style(Style::default().fg(get_orange_color()).add_modifier(Modifier::BOLD)),
+            .title_style(
+                Style::default()
+                    .fg(get_orange_color())
+                    .add_modifier(Modifier::BOLD),
+            ),
     );
     frame.render_widget(status_widget, chunks[1]);
 
@@ -98,7 +134,11 @@ pub fn render_home(frame: &mut Frame, app: &App) {
             .borders(Borders::ALL)
             .border_style(Style::default().fg(get_orange_accent()))
             .title("Actions")
-            .title_style(Style::default().fg(get_orange_color()).add_modifier(Modifier::BOLD)),
+            .title_style(
+                Style::default()
+                    .fg(get_orange_color())
+                    .add_modifier(Modifier::BOLD),
+            ),
     );
     frame.render_widget(menu_widget, chunks[2]);
 

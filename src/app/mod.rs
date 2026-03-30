@@ -99,7 +99,9 @@ impl App {
         match output {
             Ok(out) => {
                 let text = String::from_utf8_lossy(&out.stdout).to_lowercase();
-                let keycloak = text.lines().any(|l| l.contains("keycloak") && !l.contains("db"));
+                let keycloak = text
+                    .lines()
+                    .any(|l| l.contains("keycloak") && !l.contains("db"));
                 let portal = text.lines().any(|l| l.contains("portal"));
                 (keycloak, portal)
             }
@@ -152,9 +154,13 @@ impl App {
                 }
                 AppState::InstallingKeycloak => {
                     self.install_phase = "Keycloak".to_string();
-                    self.logs.push("🚀 Starting Keycloak installation...".to_string());
+                    self.logs
+                        .push("🚀 Starting Keycloak installation...".to_string());
                     let result = self
-                        .run_docker_compose_services(&["traefik", "keycloak-db", "keycloak"], &mut terminal)
+                        .run_docker_compose_services(
+                            &["traefik", "keycloak-db", "keycloak"],
+                            &mut terminal,
+                        )
                         .await;
                     match result {
                         Ok(_) => {
@@ -162,7 +168,8 @@ impl App {
                             self.state = AppState::KeycloakSuccess;
                         }
                         Err(e) => {
-                            self.state = AppState::Error(format!("Keycloak installation failed: {}", e));
+                            self.state =
+                                AppState::Error(format!("Keycloak installation failed: {}", e));
                         }
                     }
                 }
@@ -174,15 +181,19 @@ impl App {
                 }
                 AppState::InstallingPortal => {
                     self.install_phase = "Portal".to_string();
-                    self.logs.push("🚀 Starting Portal installation...".to_string());
-                    let result = self.run_docker_compose_services(&["portal"], &mut terminal).await;
+                    self.logs
+                        .push("🚀 Starting Portal installation...".to_string());
+                    let result = self
+                        .run_docker_compose_services(&["portal"], &mut terminal)
+                        .await;
                     match result {
                         Ok(_) => {
                             self.progress = 100.0;
                             self.state = AppState::PortalSuccess;
                         }
                         Err(e) => {
-                            self.state = AppState::Error(format!("Portal installation failed: {}", e));
+                            self.state =
+                                AppState::Error(format!("Portal installation failed: {}", e));
                         }
                     }
                 }
@@ -191,7 +202,9 @@ impl App {
                         if let Event::Key(key) = event::read()? {
                             if key.kind == KeyEventKind::Press {
                                 match key.code {
-                                    KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                    KeyCode::Char('c')
+                                        if key.modifiers.contains(KeyModifiers::CONTROL) =>
+                                    {
                                         self.running = false;
                                     }
                                     KeyCode::Char('q') => self.running = false,
@@ -284,14 +297,16 @@ impl App {
                     if self.keycloak_form.editing {
                         match key.code {
                             KeyCode::Char(c) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
-                                if let FocusState::Field(i) = self.keycloak_form.focus_state.clone() {
+                                if let FocusState::Field(i) = self.keycloak_form.focus_state.clone()
+                                {
                                     if let Some(val) = self.keycloak_form.get_field_value_mut(i) {
                                         val.push(c);
                                     }
                                 }
                             }
                             KeyCode::Backspace => {
-                                if let FocusState::Field(i) = self.keycloak_form.focus_state.clone() {
+                                if let FocusState::Field(i) = self.keycloak_form.focus_state.clone()
+                                {
                                     if let Some(val) = self.keycloak_form.get_field_value_mut(i) {
                                         val.pop();
                                     }
@@ -314,27 +329,23 @@ impl App {
 
                     match key.code {
                         KeyCode::Up | KeyCode::BackTab => {
-                            self.keycloak_form.focus_state =
-                                match &self.keycloak_form.focus_state {
-                                    FocusState::Field(0) => FocusState::CancelButton,
-                                    FocusState::Field(i) => FocusState::Field(i - 1),
-                                    FocusState::SaveButton => {
-                                        FocusState::Field(self.keycloak_form.get_total_fields() - 1)
-                                    }
-                                    FocusState::CancelButton => FocusState::SaveButton,
-                                };
+                            self.keycloak_form.focus_state = match &self.keycloak_form.focus_state {
+                                FocusState::Field(0) => FocusState::CancelButton,
+                                FocusState::Field(i) => FocusState::Field(i - 1),
+                                FocusState::SaveButton => {
+                                    FocusState::Field(self.keycloak_form.get_total_fields() - 1)
+                                }
+                                FocusState::CancelButton => FocusState::SaveButton,
+                            };
                         }
                         KeyCode::Down | KeyCode::Tab => {
                             let total = self.keycloak_form.get_total_fields();
-                            self.keycloak_form.focus_state =
-                                match &self.keycloak_form.focus_state {
-                                    FocusState::Field(i) if *i + 1 < total => {
-                                        FocusState::Field(i + 1)
-                                    }
-                                    FocusState::Field(_) => FocusState::SaveButton,
-                                    FocusState::SaveButton => FocusState::CancelButton,
-                                    FocusState::CancelButton => FocusState::Field(0),
-                                };
+                            self.keycloak_form.focus_state = match &self.keycloak_form.focus_state {
+                                FocusState::Field(i) if *i + 1 < total => FocusState::Field(i + 1),
+                                FocusState::Field(_) => FocusState::SaveButton,
+                                FocusState::SaveButton => FocusState::CancelButton,
+                                FocusState::CancelButton => FocusState::Field(0),
+                            };
                         }
                         KeyCode::Enter => match &self.keycloak_form.focus_state {
                             FocusState::Field(_) => {
@@ -417,27 +428,23 @@ impl App {
 
                     match key.code {
                         KeyCode::Up | KeyCode::BackTab => {
-                            self.portal_form.focus_state =
-                                match &self.portal_form.focus_state {
-                                    FocusState::Field(0) => FocusState::CancelButton,
-                                    FocusState::Field(i) => FocusState::Field(i - 1),
-                                    FocusState::SaveButton => {
-                                        FocusState::Field(self.portal_form.get_total_fields() - 1)
-                                    }
-                                    FocusState::CancelButton => FocusState::SaveButton,
-                                };
+                            self.portal_form.focus_state = match &self.portal_form.focus_state {
+                                FocusState::Field(0) => FocusState::CancelButton,
+                                FocusState::Field(i) => FocusState::Field(i - 1),
+                                FocusState::SaveButton => {
+                                    FocusState::Field(self.portal_form.get_total_fields() - 1)
+                                }
+                                FocusState::CancelButton => FocusState::SaveButton,
+                            };
                         }
                         KeyCode::Down | KeyCode::Tab => {
                             let total = self.portal_form.get_total_fields();
-                            self.portal_form.focus_state =
-                                match &self.portal_form.focus_state {
-                                    FocusState::Field(i) if *i + 1 < total => {
-                                        FocusState::Field(i + 1)
-                                    }
-                                    FocusState::Field(_) => FocusState::SaveButton,
-                                    FocusState::SaveButton => FocusState::CancelButton,
-                                    FocusState::CancelButton => FocusState::Field(0),
-                                };
+                            self.portal_form.focus_state = match &self.portal_form.focus_state {
+                                FocusState::Field(i) if *i + 1 < total => FocusState::Field(i + 1),
+                                FocusState::Field(_) => FocusState::SaveButton,
+                                FocusState::SaveButton => FocusState::CancelButton,
+                                FocusState::CancelButton => FocusState::Field(0),
+                            };
                         }
                         KeyCode::Enter => match &self.portal_form.focus_state {
                             FocusState::Field(_) => {
@@ -512,36 +519,32 @@ impl App {
                 if key.kind == KeyEventKind::Press {
                     match key.code {
                         KeyCode::Up => {
-                            self.registry_form.focus_state =
-                                match &self.registry_form.focus_state {
-                                    FocusState::Field(_) => FocusState::Field(0),
-                                    FocusState::SaveButton => FocusState::Field(0),
-                                    FocusState::CancelButton => FocusState::SaveButton,
-                                };
+                            self.registry_form.focus_state = match &self.registry_form.focus_state {
+                                FocusState::Field(_) => FocusState::Field(0),
+                                FocusState::SaveButton => FocusState::Field(0),
+                                FocusState::CancelButton => FocusState::SaveButton,
+                            };
                         }
                         KeyCode::Down => {
-                            self.registry_form.focus_state =
-                                match &self.registry_form.focus_state {
-                                    FocusState::Field(_) => FocusState::SaveButton,
-                                    FocusState::SaveButton => FocusState::CancelButton,
-                                    FocusState::CancelButton => FocusState::CancelButton,
-                                };
+                            self.registry_form.focus_state = match &self.registry_form.focus_state {
+                                FocusState::Field(_) => FocusState::SaveButton,
+                                FocusState::SaveButton => FocusState::CancelButton,
+                                FocusState::CancelButton => FocusState::CancelButton,
+                            };
                         }
                         KeyCode::Tab => {
-                            self.registry_form.focus_state =
-                                match &self.registry_form.focus_state {
-                                    FocusState::Field(_) => FocusState::SaveButton,
-                                    FocusState::SaveButton => FocusState::CancelButton,
-                                    FocusState::CancelButton => FocusState::Field(0),
-                                };
+                            self.registry_form.focus_state = match &self.registry_form.focus_state {
+                                FocusState::Field(_) => FocusState::SaveButton,
+                                FocusState::SaveButton => FocusState::CancelButton,
+                                FocusState::CancelButton => FocusState::Field(0),
+                            };
                         }
                         KeyCode::BackTab => {
-                            self.registry_form.focus_state =
-                                match &self.registry_form.focus_state {
-                                    FocusState::Field(_) => FocusState::CancelButton,
-                                    FocusState::SaveButton => FocusState::Field(0),
-                                    FocusState::CancelButton => FocusState::SaveButton,
-                                };
+                            self.registry_form.focus_state = match &self.registry_form.focus_state {
+                                FocusState::Field(_) => FocusState::CancelButton,
+                                FocusState::SaveButton => FocusState::Field(0),
+                                FocusState::CancelButton => FocusState::SaveButton,
+                            };
                         }
                         KeyCode::Enter => match &self.registry_form.focus_state {
                             FocusState::SaveButton => return Ok(Some(RegistryAction::Submit)),
@@ -782,12 +785,14 @@ impl App {
         let compose_cmd = self.detect_compose_command().await?;
         let root = utils::project_root();
 
-        let compose_candidates = ["docker-compose.yaml", "docker-compose.yml", "compose.yaml", "compose.yml"];
+        let compose_candidates = [
+            "docker-compose.yaml",
+            "docker-compose.yml",
+            "compose.yaml",
+            "compose.yml",
+        ];
         if !compose_candidates.iter().any(|f| root.join(f).exists()) {
-            return Err(eyre!(
-                "docker-compose.yaml not found in {}",
-                root.display()
-            ));
+            return Err(eyre!("docker-compose.yaml not found in {}", root.display()));
         }
 
         self.add_log(&format!(
@@ -869,8 +874,7 @@ impl App {
             }
         } else if lower.contains("started") {
             self.completed_services += 1;
-            self.progress =
-                (self.completed_services as f64 / self.total_services as f64) * 100.0;
+            self.progress = (self.completed_services as f64 / self.total_services as f64) * 100.0;
             self.add_log(&format!(
                 "✅ Service started ({}/{})",
                 self.completed_services, self.total_services
@@ -918,7 +922,9 @@ impl App {
             return Ok(vec!["docker-compose".to_string()]);
         }
 
-        Err(eyre!("Neither 'docker compose' nor 'docker-compose' found. Please install Docker Compose."))
+        Err(eyre!(
+            "Neither 'docker compose' nor 'docker-compose' found. Please install Docker Compose."
+        ))
     }
 
     fn add_log(&mut self, message: &str) {
