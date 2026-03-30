@@ -50,7 +50,7 @@ services:
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-identity}
 
   portal:
-    image: ghcr.io/idhamtrycode/nqrust-identity-portal:latest
+    image: ghcr.io/nexusquantum/nqrust-identity-portal:latest
     container_name: nqrust-identity-portal
     restart: unless-stopped
     extra_hosts:

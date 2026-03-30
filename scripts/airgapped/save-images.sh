@@ -37,7 +37,7 @@ declare -a IMAGES=(
     "traefik:v3.4|traefik.tar.gz"
     "postgres:16-alpine|postgres.tar.gz"
     "ghcr.io/nexusquantum/nqrust-identity:latest|nqrust-identity.tar.gz"
-    "ghcr.io/idhamtrycode/nqrust-identity-portal:latest|nqrust-identity-portal.tar.gz"
+    "ghcr.io/nexusquantum/nqrust-identity-portal:latest|nqrust-identity-portal.tar.gz"
 )
 
 TOTAL_IMAGES=${#IMAGES[@]}
