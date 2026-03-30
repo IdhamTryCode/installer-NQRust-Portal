@@ -7,7 +7,9 @@ use ratatui::{
 };
 
 use crate::app::App;
-use crate::app::form_data::{FocusState, KC_ADMIN_PASSWORD, KC_ADMIN_USERNAME, KC_DB_PASSWORD, KC_DB_USER};
+use crate::app::form_data::{
+    FocusState, KC_ADMIN_PASSWORD, KC_ADMIN_USERNAME, KC_DB_PASSWORD, KC_DB_USER,
+};
 use crate::ui::{get_orange_accent, get_orange_color};
 
 pub fn render_keycloak_form(frame: &mut Frame, app: &App) {
@@ -27,8 +29,16 @@ pub fn render_keycloak_form(frame: &mut Frame, app: &App) {
 
     // Title
     let title = Paragraph::new("⚙  Install Keycloak — Phase 1 of 2")
-        .style(Style::default().fg(get_orange_color()).add_modifier(Modifier::BOLD))
-        .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(get_orange_accent())))
+        .style(
+            Style::default()
+                .fg(get_orange_color())
+                .add_modifier(Modifier::BOLD),
+        )
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(get_orange_accent())),
+        )
         .centered();
     frame.render_widget(title, chunks[0]);
 
@@ -49,7 +59,10 @@ pub fn render_keycloak_form(frame: &mut Frame, app: &App) {
         };
 
         let field_style = if is_focused {
-            Style::default().fg(Color::Black).bg(get_orange_color()).add_modifier(Modifier::BOLD)
+            Style::default()
+                .fg(Color::Black)
+                .bg(get_orange_color())
+                .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(Color::White)
         };
@@ -76,15 +89,25 @@ pub fn render_keycloak_form(frame: &mut Frame, app: &App) {
             .borders(Borders::ALL)
             .border_style(Style::default().fg(get_orange_accent()))
             .title("Configuration")
-            .title_style(Style::default().fg(get_orange_color()).add_modifier(Modifier::BOLD)),
+            .title_style(
+                Style::default()
+                    .fg(get_orange_color())
+                    .add_modifier(Modifier::BOLD),
+            ),
     );
     frame.render_widget(form_widget, chunks[1]);
 
     // Hardcoded defaults info
     let info_lines = vec![
-        Line::from(Span::styled("  Hardcoded defaults (not editable):", Style::default().fg(Color::DarkGray))),
         Line::from(Span::styled(
-            format!("  Admin: {} / {}   DB user: {} / {}", KC_ADMIN_USERNAME, KC_ADMIN_PASSWORD, KC_DB_USER, KC_DB_PASSWORD),
+            "  Hardcoded defaults (not editable):",
+            Style::default().fg(Color::DarkGray),
+        )),
+        Line::from(Span::styled(
+            format!(
+                "  Admin: {} / {}   DB user: {} / {}",
+                KC_ADMIN_USERNAME, KC_ADMIN_PASSWORD, KC_DB_USER, KC_DB_PASSWORD
+            ),
             Style::default().fg(Color::DarkGray),
         )),
         Line::from(""),
@@ -103,12 +126,20 @@ pub fn render_keycloak_form(frame: &mut Frame, app: &App) {
     let cancel_focused = matches!(&app.keycloak_form.focus_state, FocusState::CancelButton);
 
     let save_style = if save_focused {
-        Style::default().fg(Color::Black).bg(Color::Green).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Black)
+            .bg(Color::Green)
+            .add_modifier(Modifier::BOLD)
     } else {
-        Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Green)
+            .add_modifier(Modifier::BOLD)
     };
     let cancel_style = if cancel_focused {
-        Style::default().fg(Color::Black).bg(Color::Red).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Black)
+            .bg(Color::Red)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
     };

@@ -1,6 +1,6 @@
 [package]
 name = "installer-nqrust-portal"
-version = "0.1.0"
+version = "0.0.1"
 description = "Interactive TUI installer for NQRust Identity Portal"
 authors = ["Idham <idhammultazam7@gmail.com>"]
 license = "MIT"

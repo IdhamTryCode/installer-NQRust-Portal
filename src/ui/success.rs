@@ -36,8 +36,16 @@ pub fn render_success(frame: &mut Frame, view: &SuccessView<'_>) {
     };
 
     let title = Paragraph::new(title_text)
-        .style(Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
-        .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(get_orange_accent())))
+        .style(
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
+        )
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(get_orange_accent())),
+        )
         .centered();
     frame.render_widget(title, chunks[0]);
 
@@ -46,23 +54,38 @@ pub fn render_success(frame: &mut Frame, view: &SuccessView<'_>) {
             Line::from(""),
             Line::from(Span::styled(
                 "Keycloak is running! Next steps:",
-                Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
             Line::from(vec![
                 Span::raw("  Keycloak Admin: "),
                 Span::styled(
                     view.keycloak_url,
-                    Style::default().fg(Color::Cyan).add_modifier(Modifier::UNDERLINED),
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::UNDERLINED),
                 ),
             ]),
             Line::from(""),
-            Line::from(Span::styled("  1. Log in to Keycloak Admin", Style::default().fg(Color::White))),
-            Line::from(Span::styled("  2. Create realm and client (nqrust-portal)", Style::default().fg(Color::White))),
-            Line::from(Span::styled("  3. Copy the Client Secret from Credentials tab", Style::default().fg(Color::White))),
+            Line::from(Span::styled(
+                "  1. Log in to Keycloak Admin",
+                Style::default().fg(Color::White),
+            )),
+            Line::from(Span::styled(
+                "  2. Create realm and client (nqrust-portal)",
+                Style::default().fg(Color::White),
+            )),
+            Line::from(Span::styled(
+                "  3. Copy the Client Secret from Credentials tab",
+                Style::default().fg(Color::White),
+            )),
             Line::from(Span::styled(
                 "  4. Press I to install the Portal",
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
         ]
@@ -71,16 +94,28 @@ pub fn render_success(frame: &mut Frame, view: &SuccessView<'_>) {
             Line::from(""),
             Line::from(Span::styled(
                 "Identity Portal is fully running!",
-                Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
             Line::from(vec![
                 Span::raw("  Portal:   "),
-                Span::styled(view.portal_url, Style::default().fg(Color::Cyan).add_modifier(Modifier::UNDERLINED)),
+                Span::styled(
+                    view.portal_url,
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::UNDERLINED),
+                ),
             ]),
             Line::from(vec![
                 Span::raw("  Keycloak: "),
-                Span::styled(view.keycloak_url, Style::default().fg(Color::Cyan).add_modifier(Modifier::UNDERLINED)),
+                Span::styled(
+                    view.keycloak_url,
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::UNDERLINED),
+                ),
             ]),
             Line::from(""),
         ]
@@ -90,8 +125,16 @@ pub fn render_success(frame: &mut Frame, view: &SuccessView<'_>) {
         Block::default()
             .borders(Borders::ALL)
             .border_style(Style::default().fg(get_orange_accent()))
-            .title(if view.phase == "Keycloak" { "Next Steps" } else { "Access URLs" })
-            .title_style(Style::default().fg(get_orange_color()).add_modifier(Modifier::BOLD)),
+            .title(if view.phase == "Keycloak" {
+                "Next Steps"
+            } else {
+                "Access URLs"
+            })
+            .title_style(
+                Style::default()
+                    .fg(get_orange_color())
+                    .add_modifier(Modifier::BOLD),
+            ),
     );
     frame.render_widget(message_widget, chunks[1]);
 
@@ -109,7 +152,11 @@ pub fn render_success(frame: &mut Frame, view: &SuccessView<'_>) {
             .borders(Borders::ALL)
             .border_style(Style::default().fg(get_orange_accent()))
             .title("Installation Summary")
-            .title_style(Style::default().fg(get_orange_color()).add_modifier(Modifier::BOLD)),
+            .title_style(
+                Style::default()
+                    .fg(get_orange_color())
+                    .add_modifier(Modifier::BOLD),
+            ),
     );
     frame.render_widget(logs_widget, chunks[2]);
 
