@@ -19,24 +19,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
 
       - name: Install packaging deps
         run: |
           sudo apt-get update
           sudo apt-get install -y dpkg-dev
           cargo install cargo-deb --locked
-          cargo install cargo-edit --locked
-
-      - name: Sync Cargo version with tag
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          echo "Setting Cargo.toml version to ${VERSION} from tag ${GITHUB_REF_NAME}"
-          cargo set-version "${VERSION}"
 
       - name: Build release binary
         run: cargo build --release
@@ -48,14 +42,10 @@ jobs:
         run: |
           mkdir -p dist
           DEB_FILE=$(ls target/debian/*.deb | head -n 1)
-          # Binary tarball
           tar -C target/release -czf dist/${BIN_NAME}-linux-amd64.tar.gz ${BIN_NAME}
-          # Raw binary for convenience
           cp target/release/${BIN_NAME} dist/${BIN_NAME}-linux-amd64
-          # Debian package
           cp "${DEB_FILE}" dist/
           cp "${DEB_FILE}" dist/${BIN_NAME}_${ARCH}.deb
-          # Checksums
           (cd dist && sha256sum * > SHA256SUMS)
 
       - name: Upload release assets
