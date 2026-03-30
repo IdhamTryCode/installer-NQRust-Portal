@@ -698,6 +698,8 @@ impl App {
         content = content.replace("{{HOSTNAME}}", &self.keycloak_form.hostname);
         content = content.replace("{{KEYCLOAK_PORT}}", &self.keycloak_form.keycloak_port);
         content = content.replace("{{PORTAL_PORT}}", &self.keycloak_form.portal_port);
+        // These are also used directly by docker-compose ports mapping
+        // (already replaced above via KEYCLOAK_PORT and PORTAL_PORT placeholders)
         content = content.replace("{{REALM_NAME}}", "myrealm");
         content = content.replace("{{KEYCLOAK_CLIENT_ID}}", "nqrust-portal");
         content = content.replace("{{KEYCLOAK_CLIENT_SECRET}}", "");

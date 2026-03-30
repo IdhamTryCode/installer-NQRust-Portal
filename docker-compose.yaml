@@ -1,0 +1,61 @@
+services:
+  traefik:
+    image: traefik:v3.4
+    container_name: nqrust-traefik
+    restart: unless-stopped
+    command:
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+      - --entrypoints.web.address=:80
+      - --entrypoints.identity.address=:82
+    ports:
+      - "${PORTAL_PORT:-8080}:80"
+      - "${KEYCLOAK_PORT:-8082}:82"
+      - "8081:8080"
+    volumes:
+      - ./traefik:/etc/traefik/dynamic:ro
+
+  keycloak-db:
+    image: postgres:16-alpine
+    container_name: nqrust-keycloak-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${KEYCLOAK_DB_NAME:-identity}
+      POSTGRES_USER: ${KEYCLOAK_DB_USER:-identity}
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-identity}
+    volumes:
+      - keycloak-db-data:/var/lib/postgresql/data
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
+    container_name: nqrust-keycloak
+    restart: unless-stopped
+    command: start-dev
+    depends_on:
+      - keycloak-db
+    environment:
+      KC_DB: postgres
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USER:-identity}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-identity}
+      KC_DB_URL_HOST: keycloak-db
+      KC_DB_URL_DATABASE: ${KEYCLOAK_DB_NAME:-identity}
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HOSTNAME: ${KEYCLOAK_EXTERNAL_HOST:-http://localhost:8082}
+      KC_HOSTNAME_STRICT: "false"
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-identity}
+
+  portal:
+    image: ghcr.io/idhamtrycode/nqrust-identity-portal:latest
+    container_name: nqrust-identity-portal
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - .env
+
+volumes:
+  keycloak-db-data:

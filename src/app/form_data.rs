@@ -1,6 +1,7 @@
 // Hardcoded defaults for Keycloak — NOT user-editable
 pub const KC_ADMIN_USERNAME: &str = "admin";
 pub const KC_ADMIN_PASSWORD: &str = "identity";
+#[allow(dead_code)]
 pub const KC_DB_NAME: &str = "identity";
 pub const KC_DB_USER: &str = "identity";
 pub const KC_DB_PASSWORD: &str = "identity";

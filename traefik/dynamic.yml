@@ -1,0 +1,77 @@
+http:
+  routers:
+    portal-public:
+      rule: PathPrefix(`/license-activation`) || PathPrefix(`/_next`) || PathPrefix(`/images`) || Path(`/favicon.ico`) || PathPrefix(`/api/auth`) || PathPrefix(`/api/license-gate`)
+      entryPoints:
+        - web
+      priority: 100
+      service: portal-svc
+
+    portal-protected:
+      rule: PathPrefix(`/`)
+      entryPoints:
+        - web
+      priority: 1
+      middlewares:
+        - license-auth
+      service: portal-svc
+
+    identity-realms:
+      rule: PathPrefix(`/realms`)
+      entryPoints:
+        - identity
+      priority: 100
+      middlewares:
+        - license-auth
+      service: keycloak-svc
+
+    identity-admin:
+      rule: PathPrefix(`/admin`)
+      entryPoints:
+        - identity
+      priority: 100
+      middlewares:
+        - license-auth
+      service: keycloak-svc
+
+    identity-resources:
+      rule: PathPrefix(`/resources`)
+      entryPoints:
+        - identity
+      priority: 99
+      middlewares:
+        - license-auth
+      service: keycloak-svc
+
+    identity-root:
+      rule: Path(`/`)
+      entryPoints:
+        - identity
+      priority: 98
+      middlewares:
+        - license-auth
+        - identity-root-redirect
+      service: noop@internal
+
+  middlewares:
+    identity-root-redirect:
+      redirectRegex:
+        regex: ^http://([^/]+)/?$
+        replacement: http://${1}/admin/master/console/
+        permanent: false
+
+    license-auth:
+      forwardAuth:
+        address: http://portal:3005/api/license-gate
+        trustForwardHeader: true
+
+  services:
+    portal-svc:
+      loadBalancer:
+        servers:
+          - url: http://portal:3005
+
+    keycloak-svc:
+      loadBalancer:
+        servers:
+          - url: http://keycloak:8080
