@@ -29,7 +29,7 @@ services:
       - keycloak-db-data:/var/lib/postgresql/data
 
   keycloak:
-    image: quay.io/keycloak/keycloak:26.1
+    image: ghcr.io/nexusquantum/nqrust-identity:latest
     container_name: nqrust-keycloak
     restart: unless-stopped
     command: start-dev

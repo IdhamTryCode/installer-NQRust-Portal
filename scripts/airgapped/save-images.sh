@@ -36,7 +36,7 @@ mkdir -p "${IMAGES_DIR}"
 declare -a IMAGES=(
     "traefik:v3.4|traefik.tar.gz"
     "postgres:16-alpine|postgres.tar.gz"
-    "quay.io/keycloak/keycloak:26.1|keycloak.tar.gz"
+    "ghcr.io/nexusquantum/nqrust-identity:latest|nqrust-identity.tar.gz"
     "ghcr.io/idhamtrycode/nqrust-identity-portal:latest|nqrust-identity-portal.tar.gz"
 )
 
