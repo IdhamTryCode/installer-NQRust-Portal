@@ -15,6 +15,8 @@ KEYCLOAK_DB_NAME=identity
 KEYCLOAK_DB_USER=identity
 KEYCLOAK_DB_PASSWORD=identity
 
+DATABASE_URL=postgresql://identity:identity@keycloak-db:5432/nqrust_portal
+
 NEXT_PUBLIC_LICENSE_API_KEY=pk_live_qD0FyRqewuZgIfhPvFDGT3SuZYcZKY7oeCsfTp9T
 NEXT_PUBLIC_LICENSE_SERVER_URL=https://billing.nexusquantum.id
 LICENSE_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAupcIIOQicInO2h3mlI7Kx8LYp0b8y3UKm0pca00Gzc4=\n-----END PUBLIC KEY-----"
