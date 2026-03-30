@@ -4,18 +4,6 @@ on:
   release:
     types: [published]
 
-  push:
-    branches:
-      - main
-    paths:
-      - "src/**"
-      - "scripts/airgapped/**"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - "docker-compose.yaml"
-      - "traefik/**"
-      - ".github/workflows/build-airgapped.yml"
-
   workflow_dispatch:
     inputs:
       tag:
