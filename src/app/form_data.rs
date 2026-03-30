@@ -1,3 +1,10 @@
+// Hardcoded defaults for Keycloak — NOT user-editable
+pub const KC_ADMIN_USERNAME: &str = "admin";
+pub const KC_ADMIN_PASSWORD: &str = "identity";
+pub const KC_DB_NAME: &str = "identity";
+pub const KC_DB_USER: &str = "identity";
+pub const KC_DB_PASSWORD: &str = "identity";
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum FocusState {
     Field(usize),
@@ -5,112 +12,186 @@ pub enum FocusState {
     CancelButton,
 }
 
-#[derive(Debug, Clone)]
-pub struct FormData {
-    pub(crate) api_key: String,
-    pub(crate) openai_api_key: String, // For embedding models that use OpenAI
-    pub(crate) selected_provider: String,
-    pub(crate) focus_state: FocusState,
-    pub(crate) error_message: String,
+// Phase 1: Keycloak installation form
+#[derive(Debug)]
+pub struct KeycloakFormData {
+    pub hostname: String,
+    pub keycloak_port: String,
+    pub portal_port: String,
+    pub focus_state: FocusState,
+    pub editing: bool,
+    pub error_message: String,
 }
 
-impl FormData {
+impl KeycloakFormData {
     pub fn new() -> Self {
         Self {
-            api_key: String::new(),
-            openai_api_key: String::new(),
-            selected_provider: String::new(),
+            hostname: String::new(),
+            keycloak_port: "8082".to_string(),
+            portal_port: "8080".to_string(),
             focus_state: FocusState::Field(0),
+            editing: false,
             error_message: String::new(),
         }
     }
 
+    pub fn get_total_fields(&self) -> usize {
+        3
+    }
+
+    pub fn get_field_label(&self, idx: usize) -> &str {
+        match idx {
+            0 => "Hostname / IP",
+            1 => "Keycloak Port",
+            2 => "Portal Port",
+            _ => "",
+        }
+    }
+
+    pub fn get_field_value(&self, idx: usize) -> &str {
+        match idx {
+            0 => &self.hostname,
+            1 => &self.keycloak_port,
+            2 => &self.portal_port,
+            _ => "",
+        }
+    }
+
+    pub fn get_field_value_mut(&mut self, idx: usize) -> Option<&mut String> {
+        match idx {
+            0 => Some(&mut self.hostname),
+            1 => Some(&mut self.keycloak_port),
+            2 => Some(&mut self.portal_port),
+            _ => None,
+        }
+    }
+
     pub fn validate(&mut self) -> bool {
-        // Local services don't need API key
-        if self.selected_provider == "lm_studio" || self.selected_provider == "ollama" {
-            self.error_message.clear();
-            return true;
-        }
-
-        if self.api_key.trim().is_empty() {
-            self.error_message = format!("{} API Key is required!", self.get_api_key_name());
+        if self.hostname.trim().is_empty() {
+            self.error_message = "Hostname / IP is required".to_string();
             return false;
         }
-
-        // Check if provider needs OpenAI API key for embedding
-        if self.needs_openai_embedding() && self.openai_api_key.trim().is_empty() {
-            self.error_message = "OpenAI API Key is required for embedding model!".to_string();
+        if self.hostname.contains(' ') {
+            self.error_message = "Hostname must not contain spaces".to_string();
             return false;
         }
-
+        match self.keycloak_port.trim().parse::<u16>() {
+            Ok(p) if p >= 1024 => {}
+            _ => {
+                self.error_message =
+                    "Keycloak Port must be a valid port number (1024-65535)".to_string();
+                return false;
+            }
+        }
+        match self.portal_port.trim().parse::<u16>() {
+            Ok(p) if p >= 1024 => {}
+            _ => {
+                self.error_message =
+                    "Portal Port must be a valid port number (1024-65535)".to_string();
+                return false;
+            }
+        }
+        if self.keycloak_port.trim() == self.portal_port.trim() {
+            self.error_message = "Keycloak Port and Portal Port must be different".to_string();
+            return false;
+        }
         self.error_message.clear();
         true
     }
+}
 
-    pub fn get_current_value_mut(&mut self) -> &mut String {
-        match &self.focus_state {
-            FocusState::Field(idx) => match idx {
-                0 => &mut self.api_key,
-                1 => &mut self.openai_api_key,
-                _ => &mut self.api_key,
-            },
-            _ => &mut self.api_key,
-        }
+impl Default for KeycloakFormData {
+    fn default() -> Self {
+        Self::new()
     }
+}
 
-    pub fn needs_openai_embedding(&self) -> bool {
-        // Providers that use OpenAI embedding model (text-embedding-3-large)
-        matches!(
-            self.selected_provider.as_str(),
-            "deepseek" | "anthropic" | "groq" | "grok" | "zhipu" | "qwen3"
-        )
+// Phase 2: Portal installation form
+#[derive(Debug)]
+pub struct PortalFormData {
+    pub realm_name: String,
+    pub client_id: String,
+    pub client_secret: String,
+    pub focus_state: FocusState,
+    pub editing: bool,
+    pub error_message: String,
+}
+
+impl PortalFormData {
+    pub fn new() -> Self {
+        Self {
+            realm_name: "myrealm".to_string(),
+            client_id: "nqrust-portal".to_string(),
+            client_secret: String::new(),
+            focus_state: FocusState::Field(0),
+            editing: false,
+            error_message: String::new(),
+        }
     }
 
     pub fn get_total_fields(&self) -> usize {
-        if self.needs_openai_embedding() {
-            2 // Provider API key + OpenAI API key
-        } else {
-            1 // Only provider API key
+        3
+    }
+
+    pub fn get_field_label(&self, idx: usize) -> &str {
+        match idx {
+            0 => "Realm Name",
+            1 => "Client ID",
+            2 => "Client Secret",
+            _ => "",
         }
     }
 
-    pub fn get_api_key_name(&self) -> &str {
-        match self.selected_provider.as_str() {
-            "anthropic" => "Anthropic",
-            "openai" => "OpenAI",
-            "deepseek" => "DeepSeek",
-            "azure" => "Azure OpenAI",
-            "bedrock" => "AWS",
-            "google_ai_studio" => "Google AI Studio",
-            "google_vertexai" => "Google Vertex AI",
-            "grok" => "xAI Grok",
-            "groq" => "Groq",
-            "lm_studio" => "LM Studio (Local - No API Key)",
-            "ollama" => "Ollama (Local - No API Key)",
-            "open_router" => "OpenRouter",
-            "qwen3" => "Qwen",
-            "zhipu" => "Zhipu",
-            _ => "API",
+    pub fn get_field_value(&self, idx: usize) -> &str {
+        match idx {
+            0 => &self.realm_name,
+            1 => &self.client_id,
+            2 => &self.client_secret,
+            _ => "",
         }
     }
 
-    pub fn get_env_key_name(&self) -> &str {
-        match self.selected_provider.as_str() {
-            "anthropic" => "ANTHROPIC_API_KEY",
-            "openai" => "OPENAI_API_KEY",
-            "deepseek" => "DEEPSEEK_API_KEY",
-            "azure" => "AZURE_OPENAI_API_KEY",
-            "google_ai_studio" => "GEMINI_API_KEY",
-            "google_vertexai" => "GOOGLE_APPLICATION_CREDENTIALS",
-            "grok" => "XAI_API_KEY",
-            "groq" => "GROQ_API_KEY",
-            "lm_studio" => "LM_STUDIO_API_KEY",
-            "ollama" => "", // No API key needed
-            "open_router" => "OPENROUTER_API_KEY",
-            "qwen3" => "OPENROUTER_API_KEY",
-            "zhipu" => "ZHIPU_API_KEY",
-            "local_llm" => "OPENAI_API_KEY", // Local LLM uses OPENAI_API_KEY with dummy value
-            _ => "API_KEY",
+    pub fn get_field_value_mut(&mut self, idx: usize) -> Option<&mut String> {
+        match idx {
+            0 => Some(&mut self.realm_name),
+            1 => Some(&mut self.client_id),
+            2 => Some(&mut self.client_secret),
+            _ => None,
         }
+    }
+
+    pub fn is_masked(&self, idx: usize) -> bool {
+        idx == 2
+    }
+
+    pub fn validate(&mut self) -> bool {
+        if self.realm_name.trim().is_empty() {
+            self.error_message = "Realm Name is required".to_string();
+            return false;
+        }
+        if self.realm_name.contains(' ') {
+            self.error_message = "Realm Name must not contain spaces".to_string();
+            return false;
+        }
+        if self.client_id.trim().is_empty() {
+            self.error_message = "Client ID is required".to_string();
+            return false;
+        }
+        if self.client_id.contains(' ') {
+            self.error_message = "Client ID must not contain spaces".to_string();
+            return false;
+        }
+        if self.client_secret.trim().is_empty() {
+            self.error_message = "Client Secret is required".to_string();
+            return false;
+        }
+        self.error_message.clear();
+        true
+    }
+}
+
+impl Default for PortalFormData {
+    fn default() -> Self {
+        Self::new()
     }
 }

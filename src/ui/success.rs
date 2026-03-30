@@ -10,6 +10,9 @@ use crate::ui::{get_orange_accent, get_orange_color};
 
 pub struct SuccessView<'a> {
     pub logs: &'a [String],
+    pub phase: &'a str,
+    pub keycloak_url: &'a str,
+    pub portal_url: &'a str,
 }
 
 pub fn render_success(frame: &mut Frame, view: &SuccessView<'_>) {
@@ -20,65 +23,83 @@ pub fn render_success(frame: &mut Frame, view: &SuccessView<'_>) {
         .margin(2)
         .constraints([
             Constraint::Length(3),
-            Constraint::Min(5),
-            Constraint::Min(10),
+            Constraint::Min(8),
+            Constraint::Min(8),
             Constraint::Length(2),
         ])
         .split(area);
 
-    let title = Paragraph::new("✅ Installation Complete!")
-        .style(
-            Style::default()
-                .fg(Color::Green)
-                .add_modifier(Modifier::BOLD),
-        )
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(get_orange_accent())),
-        )
+    let title_text = if view.phase == "Keycloak" {
+        "✅  Keycloak Installed!"
+    } else {
+        "✅  Portal Installed!"
+    };
+
+    let title = Paragraph::new(title_text)
+        .style(Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
+        .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(get_orange_accent())))
         .centered();
     frame.render_widget(title, chunks[0]);
 
-    let message = vec![
-        Line::from(""),
-        Line::from(Span::styled(
-            "Analytics has been successfully installed!",
-            Style::default()
-                .fg(Color::Green)
-                .add_modifier(Modifier::BOLD),
-        )),
-        Line::from(""),
-        Line::from("All services are now running. You can access Analytics UI at:"),
-        Line::from(Span::styled(
-            "http://localhost:3000",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::UNDERLINED),
-        )),
-        Line::from(""),
-    ];
-
-    let message_widget = Paragraph::new(message)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(get_orange_accent()))
-                .title("Success")
-                .title_style(
-                    Style::default()
-                        .fg(get_orange_color())
-                        .add_modifier(Modifier::BOLD),
+    let message = if view.phase == "Keycloak" {
+        vec![
+            Line::from(""),
+            Line::from(Span::styled(
+                "Keycloak is running! Next steps:",
+                Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
+            )),
+            Line::from(""),
+            Line::from(vec![
+                Span::raw("  Keycloak Admin: "),
+                Span::styled(
+                    view.keycloak_url,
+                    Style::default().fg(Color::Cyan).add_modifier(Modifier::UNDERLINED),
                 ),
-        )
-        .centered();
+            ]),
+            Line::from(""),
+            Line::from(Span::styled("  1. Log in to Keycloak Admin", Style::default().fg(Color::White))),
+            Line::from(Span::styled("  2. Create realm and client (nqrust-portal)", Style::default().fg(Color::White))),
+            Line::from(Span::styled("  3. Copy the Client Secret from Credentials tab", Style::default().fg(Color::White))),
+            Line::from(Span::styled(
+                "  4. Press I to install the Portal",
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            )),
+            Line::from(""),
+        ]
+    } else {
+        vec![
+            Line::from(""),
+            Line::from(Span::styled(
+                "Identity Portal is fully running!",
+                Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
+            )),
+            Line::from(""),
+            Line::from(vec![
+                Span::raw("  Portal:   "),
+                Span::styled(view.portal_url, Style::default().fg(Color::Cyan).add_modifier(Modifier::UNDERLINED)),
+            ]),
+            Line::from(vec![
+                Span::raw("  Keycloak: "),
+                Span::styled(view.keycloak_url, Style::default().fg(Color::Cyan).add_modifier(Modifier::UNDERLINED)),
+            ]),
+            Line::from(""),
+        ]
+    };
+
+    let message_widget = Paragraph::new(message).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(get_orange_accent()))
+            .title(if view.phase == "Keycloak" { "Next Steps" } else { "Access URLs" })
+            .title_style(Style::default().fg(get_orange_color()).add_modifier(Modifier::BOLD)),
+    );
     frame.render_widget(message_widget, chunks[1]);
 
     let log_lines: Vec<Line> = view
         .logs
         .iter()
         .rev()
-        .take(10)
+        .take(8)
         .rev()
         .map(|log| Line::from(Span::styled(log.clone(), Style::default().fg(Color::White))))
         .collect();
@@ -88,15 +109,16 @@ pub fn render_success(frame: &mut Frame, view: &SuccessView<'_>) {
             .borders(Borders::ALL)
             .border_style(Style::default().fg(get_orange_accent()))
             .title("Installation Summary")
-            .title_style(
-                Style::default()
-                    .fg(get_orange_color())
-                    .add_modifier(Modifier::BOLD),
-            ),
+            .title_style(Style::default().fg(get_orange_color()).add_modifier(Modifier::BOLD)),
     );
     frame.render_widget(logs_widget, chunks[2]);
 
-    let help = Paragraph::new("Press Ctrl+C to exit")
+    let help_text = if view.phase == "Keycloak" {
+        "I Install Portal   Q Quit   Ctrl+C Quit"
+    } else {
+        "Press Ctrl+C to exit"
+    };
+    let help = Paragraph::new(help_text)
         .style(Style::default().fg(Color::DarkGray))
         .centered();
     frame.render_widget(help, chunks[3]);

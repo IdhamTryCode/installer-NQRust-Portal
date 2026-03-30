@@ -1,23 +1,20 @@
 #[derive(Debug, Clone, PartialEq)]
 pub enum AppState {
     RegistrySetup,
-    Confirmation,
-    EnvSetup,
-    ConfigSelection,
-    LocalLlmConfig,
-    UpdateList,
-    UpdatePulling,
-    Installing,
-    Success,
+    Home,
+    KeycloakForm,
+    InstallingKeycloak,
+    KeycloakSuccess,
+    PortalForm,
+    InstallingPortal,
+    PortalSuccess,
     Error(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum MenuSelection {
-    Proceed,
-    GenerateEnv,
-    GenerateConfig,
+pub enum HomeMenuItem {
+    InstallKeycloak,
+    InstallPortal,
     UpdateToken,
-    CheckUpdates,
-    Cancel,
+    Exit,
 }

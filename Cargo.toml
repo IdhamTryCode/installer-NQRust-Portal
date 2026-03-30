@@ -1,13 +1,13 @@
 [package]
-name = "installer-analytics"
+name = "installer-nqrust-portal"
 version = "0.1.0"
-description = "Interactive TUI installer for NexusQuantum Analytics stack"
+description = "Interactive TUI installer for NQRust Identity Portal"
 authors = ["Idham <idhammultazam7@gmail.com>"]
 license = "MIT"
 edition = "2024"
 
 [[bin]]
-name = "nqrust-analytics"
+name = "nqrust-portal"
 path = "src/main.rs"
 
 [dependencies]
@@ -15,26 +15,17 @@ ratatui = "0.29.0"
 color-eyre = "0.6.3"
 crossterm = "0.28.1"
 tokio = { version = "1.42.0", features = ["full"] }
-tokio-util = { version = "0.7.17", features = ["codec"] }
 futures = "0.3.31"
 uuid = { version = "1.11.0", features = ["v4"] }
 reqwest = { version = "0.12.7", default-features = false, features = ["json", "rustls-tls"] }
 serde = { version = "1.0.210", features = ["derive"] }
 serde_json = "1.0.132"
-chrono = { version = "0.4.38", features = ["serde", "clock"] }
-semver = "1.0.23"
-# Airgapped dependencies
-flate2 = "1.0"      # For gzip decompression
-tar = "0.4"         # For tar extraction
-tempfile = "3.8"    # For temp directory management
-indicatif = "0.17"  # For progress bars
-sha2 = "0.10"       # For payload checksum verification
 
 [package.metadata.deb]
-name = "nqrust-analytics"
+name = "nqrust-portal"
 depends = "$auto"
 section = "utils"
 priority = "optional"
 assets = [
-	["target/release/nqrust-analytics", "usr/bin/nqrust-analytics", "755"],
+    ["target/release/nqrust-portal", "usr/bin/nqrust-portal", "755"],
 ]

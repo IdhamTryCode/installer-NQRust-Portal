@@ -14,8 +14,7 @@ pub struct InstallingView<'a> {
     pub completed_services: usize,
     pub total_services: usize,
     pub logs: &'a [String],
-    /// True when running in airgapped mode (using pre-loaded images)
-    pub airgapped: bool,
+    pub phase: &'a str,
 }
 
 pub fn render_installing(frame: &mut Frame, view: &InstallingView<'_>) {
@@ -33,23 +32,10 @@ pub fn render_installing(frame: &mut Frame, view: &InstallingView<'_>) {
         ])
         .split(area);
 
-    let title_text = if view.airgapped {
-        "🔄 Installing Analytics (Offline Mode)... Please wait"
-    } else {
-        "🔄 Installing Analytics... Please wait"
-    };
-
+    let title_text = format!("🔄  Installing {}... Please wait", view.phase);
     let title = Paragraph::new(title_text)
-        .style(
-            Style::default()
-                .fg(get_orange_color())
-                .add_modifier(Modifier::BOLD),
-        )
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(get_orange_accent())),
-        )
+        .style(Style::default().fg(get_orange_color()).add_modifier(Modifier::BOLD))
+        .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(get_orange_accent())))
         .centered();
     frame.render_widget(title, chunks[0]);
 
@@ -57,8 +43,8 @@ pub fn render_installing(frame: &mut Frame, view: &InstallingView<'_>) {
     let filled_width = ((bar_space as f64) * (view.progress / 100.0)).round() as usize;
     let filled = "█".repeat(filled_width.min(bar_space));
     let empty = "░".repeat(bar_space.saturating_sub(filled.len()));
-
     let progress_text = format!("[{}{}] {:.0}%", filled, empty, view.progress);
+
     let progress_widget = Paragraph::new(progress_text)
         .style(Style::default().fg(get_orange_color()))
         .block(
@@ -66,24 +52,16 @@ pub fn render_installing(frame: &mut Frame, view: &InstallingView<'_>) {
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(get_orange_accent()))
                 .title("Progress")
-                .title_style(
-                    Style::default()
-                        .fg(get_orange_color())
-                        .add_modifier(Modifier::BOLD),
-                ),
+                .title_style(Style::default().fg(get_orange_color()).add_modifier(Modifier::BOLD)),
         )
         .centered();
     frame.render_widget(progress_widget, chunks[1]);
 
     let current = if !view.current_service.is_empty() {
-        format!(
-            "Current: {} ({}/{})",
-            view.current_service, view.completed_services, view.total_services
-        )
+        format!("Current: {} ({}/{})", view.current_service, view.completed_services, view.total_services)
     } else {
         "Initializing...".to_string()
     };
-
     let current_widget = Paragraph::new(current)
         .style(Style::default().fg(Color::Green))
         .block(Block::default().borders(Borders::ALL).title("Status"))
@@ -100,12 +78,9 @@ pub fn render_installing(frame: &mut Frame, view: &InstallingView<'_>) {
                 Style::default().fg(Color::Green)
             } else if log.contains("⬇️") {
                 Style::default().fg(Color::Blue)
-            } else if log.contains("🔨") {
-                Style::default().fg(Color::Yellow)
             } else {
                 Style::default().fg(Color::White)
             };
-
             Line::from(Span::styled(log.clone(), style))
         })
         .collect();
@@ -116,19 +91,10 @@ pub fn render_installing(frame: &mut Frame, view: &InstallingView<'_>) {
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(get_orange_accent()))
                 .title("📋 Installation Logs")
-                .title_style(
-                    Style::default()
-                        .fg(get_orange_color())
-                        .add_modifier(Modifier::BOLD),
-                ),
+                .title_style(Style::default().fg(get_orange_color()).add_modifier(Modifier::BOLD)),
         )
         .wrap(Wrap { trim: false })
-        .scroll((
-            view.logs
-                .len()
-                .saturating_sub(chunks[3].height as usize - 2) as u16,
-            0,
-        ));
+        .scroll((view.logs.len().saturating_sub(chunks[3].height as usize - 2) as u16, 0));
     frame.render_widget(logs_widget, chunks[3]);
 
     let help = Paragraph::new("Press Ctrl+C to cancel")
