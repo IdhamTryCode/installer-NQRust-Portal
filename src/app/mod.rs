@@ -155,10 +155,10 @@ impl App {
                 AppState::InstallingKeycloak => {
                     self.install_phase = "Keycloak".to_string();
                     self.logs
-                        .push("🚀 Starting Keycloak installation...".to_string());
+                        .push("🚀 Starting Keycloak & Portal installation...".to_string());
                     let result = self
                         .run_docker_compose_services(
-                            &["traefik", "keycloak-db", "keycloak"],
+                            &["traefik", "keycloak-db", "keycloak", "portal"],
                             &mut terminal,
                         )
                         .await;
@@ -169,7 +169,7 @@ impl App {
                         }
                         Err(e) => {
                             self.state =
-                                AppState::Error(format!("Keycloak installation failed: {}", e));
+                                AppState::Error(format!("Installation failed: {}", e));
                         }
                     }
                 }
@@ -182,10 +182,8 @@ impl App {
                 AppState::InstallingPortal => {
                     self.install_phase = "Portal".to_string();
                     self.logs
-                        .push("🚀 Starting Portal installation...".to_string());
-                    let result = self
-                        .run_docker_compose_services(&["portal"], &mut terminal)
-                        .await;
+                        .push("🔄 Applying Keycloak config and restarting portal...".to_string());
+                    let result = self.restart_portal_with_new_config(&mut terminal).await;
                     match result {
                         Ok(_) => {
                             self.progress = 100.0;
@@ -193,7 +191,7 @@ impl App {
                         }
                         Err(e) => {
                             self.state =
-                                AppState::Error(format!("Portal installation failed: {}", e));
+                                AppState::Error(format!("Portal restart failed: {}", e));
                         }
                     }
                 }
@@ -383,7 +381,7 @@ impl App {
             }
             self.progress = 0.0;
             self.completed_services = 0;
-            self.total_services = 3;
+            self.total_services = 4;
             self.logs.clear();
             self.state = AppState::InstallingKeycloak;
         }
@@ -847,6 +845,64 @@ impl App {
             Ok(())
         } else {
             Err(eyre!("docker compose up failed"))
+        }
+    }
+
+    async fn restart_portal_with_new_config(
+        &mut self,
+        terminal: &mut DefaultTerminal,
+    ) -> Result<()> {
+        let compose_cmd = self.detect_compose_command().await?;
+        let root = utils::project_root();
+
+        self.add_log("🔄 Running: docker compose up -d --force-recreate portal");
+        let _ = self.redraw(terminal);
+
+        let mut cmd = Command::new(&compose_cmd[0]);
+        if compose_cmd.len() > 1 {
+            cmd.arg(&compose_cmd[1]);
+        }
+        cmd.arg("up")
+            .arg("-d")
+            .arg("--force-recreate")
+            .arg("portal")
+            .env("DOCKER_CLI_PROGRESS", "plain")
+            .current_dir(&root)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        let mut child = cmd.spawn()?;
+        let stdout = child.stdout.take().expect("Failed to capture stdout");
+        let stderr = child.stderr.take().expect("Failed to capture stderr");
+        let mut stdout_reader = BufReader::new(stdout).lines();
+        let mut stderr_reader = BufReader::new(stderr).lines();
+
+        loop {
+            tokio::select! {
+                result = stdout_reader.next_line() => {
+                    match result {
+                        Ok(Some(line)) => { self.process_log_line(&line); let _ = self.redraw(terminal); }
+                        Ok(None) => break,
+                        Err(e) => { self.add_log(&format!("❌ stdout error: {}", e)); break; }
+                    }
+                }
+                result = stderr_reader.next_line() => {
+                    match result {
+                        Ok(Some(line)) => { self.process_log_line(&line); let _ = self.redraw(terminal); }
+                        Ok(None) => break,
+                        Err(e) => { self.add_log(&format!("❌ stderr error: {}", e)); break; }
+                    }
+                }
+            }
+        }
+
+        let status = child.wait().await?;
+        if status.success() {
+            self.add_log("✅ Portal restarted with new Keycloak config!");
+            self.progress = 100.0;
+            Ok(())
+        } else {
+            Err(eyre!("docker compose up --force-recreate portal failed"))
         }
     }
 

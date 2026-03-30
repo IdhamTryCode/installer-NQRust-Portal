@@ -1,7 +1,7 @@
 http:
   routers:
     portal-public:
-      rule: PathPrefix(`/license-activation`) || PathPrefix(`/_next`) || PathPrefix(`/images`) || Path(`/favicon.ico`) || PathPrefix(`/api/auth`) || PathPrefix(`/api/license-gate`)
+      rule: PathPrefix(`/license-activation`) || PathPrefix(`/_next`) || PathPrefix(`/images`) || Path(`/favicon.ico`) || PathPrefix(`/api/auth`) || PathPrefix(`/api/license-gate`) || PathPrefix(`/api/license`)
       entryPoints:
         - web
       priority: 100
