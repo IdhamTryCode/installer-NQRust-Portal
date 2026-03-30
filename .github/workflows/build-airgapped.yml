@@ -1,0 +1,166 @@
+name: Build Airgapped Binary
+
+on:
+  release:
+    types: [published]
+
+  push:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "scripts/airgapped/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "docker-compose.yaml"
+      - "traefik/**"
+      - ".github/workflows/build-airgapped.yml"
+
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g., v1.0.0)"
+        required: false
+        default: "latest"
+      upload_to_release:
+        description: "Upload to latest release (true/false)"
+        required: false
+        default: "false"
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: write
+  packages: read
+
+jobs:
+  build-airgapped:
+    name: Build Airgapped Binary
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gzip tar coreutils jq
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Build airgapped binary
+        run: |
+          chmod +x scripts/airgapped/build-single-binary.sh
+          chmod +x scripts/airgapped/save-images.sh
+          chmod +x scripts/airgapped/build-payload.sh
+          ./scripts/airgapped/build-single-binary.sh --force-refresh
+
+      - name: Validate binary
+        run: |
+          echo "Validating airgapped binary..."
+
+          if [ ! -f nqrust-portal-airgapped ]; then
+            echo "❌ Binary not found!"
+            exit 1
+          fi
+
+          SIZE=$(stat -c%s nqrust-portal-airgapped)
+          echo "Binary size: $(numfmt --to=iec-i --suffix=B $SIZE)"
+          if [ $SIZE -lt 100000000 ]; then
+            echo "❌ Binary too small ($SIZE bytes), likely missing payload"
+            exit 1
+          fi
+
+          if ! grep -q "__NQRUST_PAYLOAD__" nqrust-portal-airgapped; then
+            echo "❌ Payload marker not found in binary"
+            exit 1
+          fi
+
+          if sha256sum -c nqrust-portal-airgapped.sha256; then
+            echo "✅ Checksum verification passed"
+          else
+            echo "❌ Checksum verification failed"
+            exit 1
+          fi
+
+          echo "✅ Binary validation passed"
+
+      - name: Generate build info
+        run: |
+          cat > build-info.txt <<EOF
+          Build Information
+          =================
+          Build Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          Git Commit: ${{ github.sha }}
+          Git Ref: ${{ github.ref }}
+          Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          Binary Details
+          ==============
+          File: nqrust-portal-airgapped
+          Size: $(stat -c%s nqrust-portal-airgapped | numfmt --to=iec-i --suffix=B)
+          SHA256: $(cat nqrust-portal-airgapped.sha256)
+
+          Included Docker Images
+          ======================
+          $(cat build/images/manifest.json | jq -r '.images[] | "- \(.name) (\(.size | tonumber / 1048576 | floor)MB)"')
+
+          Installation
+          ============
+          1. Download nqrust-portal-airgapped
+          2. Verify: sha256sum -c nqrust-portal-airgapped.sha256
+          3. Make executable: chmod +x nqrust-portal-airgapped
+          4. Run: ./nqrust-portal-airgapped
+          EOF
+
+      - name: Upload to release
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.upload_to_release == 'true')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            nqrust-portal-airgapped
+            nqrust-portal-airgapped.sha256
+            build-info.txt
+            build/images/manifest.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: airgapped-binary-${{ github.ref_name }}-${{ github.sha }}
+          path: |
+            nqrust-portal-airgapped
+            nqrust-portal-airgapped.sha256
+            build-info.txt
+            build/images/manifest.json
+            build/images/SHA256SUMS
+          retention-days: 30
+
+      - name: Summary
+        run: |
+          echo "## 🎉 Airgapped Binary Build Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Build Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Binary Size**: $(stat -c%s nqrust-portal-airgapped | numfmt --to=iec-i --suffix=B)" >> $GITHUB_STEP_SUMMARY
+          echo "- **SHA256**: \`$(cat nqrust-portal-airgapped.sha256 | cut -d' ' -f1)\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Git Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Included Images" >> $GITHUB_STEP_SUMMARY
+          cat build/images/manifest.json | jq -r '.images[] | "- **\(.name)**: \(.size | tonumber / 1048576 | floor)MB"' >> $GITHUB_STEP_SUMMARY
