@@ -788,15 +788,7 @@ impl App {
         let compose_cmd = self.detect_compose_command().await?;
         let root = utils::project_root();
 
-        let compose_candidates = [
-            "docker-compose.yaml",
-            "docker-compose.yml",
-            "compose.yaml",
-            "compose.yml",
-        ];
-        if !compose_candidates.iter().any(|f| root.join(f).exists()) {
-            return Err(eyre!("docker-compose.yaml not found in {}", root.display()));
-        }
+        utils::ensure_compose_bundle(&root)?;
 
         self.add_log(&format!(
             "🚀 Running: {} up -d {}",
