@@ -45,7 +45,6 @@ pub struct App {
     pub identity_running: bool,
     pub portal_running: bool,
     pub install_phase: String,
-    #[allow(dead_code)]
     pub is_airgapped: bool,
 }
 
@@ -116,7 +115,8 @@ impl App {
 
     pub fn get_menu_items(&self) -> Vec<HomeMenuItem> {
         let mut items = vec![HomeMenuItem::InstallIdentity, HomeMenuItem::InstallPortal];
-        if self.ghcr_token.is_some() {
+        // Token update requires network; skip in airgapped/offline mode
+        if !self.is_airgapped && self.ghcr_token.is_some() {
             items.push(HomeMenuItem::UpdateToken);
         }
         items.push(HomeMenuItem::Exit);
