@@ -1,63 +1,73 @@
 http:
   routers:
+    # Portal HTTPS (public paths, no license check)
     portal-public:
       rule: PathPrefix(`/license-activation`) || PathPrefix(`/_next`) || PathPrefix(`/images`) || Path(`/favicon.ico`) || PathPrefix(`/api/auth`) || PathPrefix(`/api/license-gate`) || PathPrefix(`/api/license`)
       entryPoints:
-        - web
+        - websecure
       priority: 100
       service: portal-svc
+      tls: {}
 
+    # Portal HTTPS (protected)
     portal-protected:
       rule: PathPrefix(`/`)
       entryPoints:
-        - web
+        - websecure
       priority: 1
       middlewares:
         - license-auth
       service: portal-svc
+      tls: {}
 
+    # Identity HTTPS routers
     identity-realms:
       rule: PathPrefix(`/realms`)
       entryPoints:
-        - identity
+        - identitysecure
       priority: 100
       middlewares:
         - license-auth
-      service: keycloak-svc
+      service: identity-svc
+      tls: {}
 
     identity-admin:
       rule: PathPrefix(`/admin`)
       entryPoints:
-        - identity
+        - identitysecure
       priority: 100
       middlewares:
         - license-auth
-      service: keycloak-svc
+      service: identity-svc
+      tls: {}
 
     identity-resources:
       rule: PathPrefix(`/resources`)
       entryPoints:
-        - identity
+        - identitysecure
       priority: 99
       middlewares:
         - license-auth
-      service: keycloak-svc
+      service: identity-svc
+      tls: {}
 
     identity-root:
       rule: Path(`/`)
       entryPoints:
-        - identity
+        - identitysecure
       priority: 98
       middlewares:
         - license-auth
         - identity-root-redirect
       service: noop@internal
+      tls: {}
 
   middlewares:
+    # Host port must match docker-compose `IDENTITY_PORT` (default 8082 → host:8082 → container :8444).
     identity-root-redirect:
       redirectRegex:
-        regex: ^http://([^/]+)/?$
-        replacement: http://${1}/admin/master/console/
+        regex: ^https?://([^/:]+)(:\d+)?/?$
+        replacement: https://${1}:8082/admin/master/console/
         permanent: false
 
     license-auth:
@@ -71,7 +81,7 @@ http:
         servers:
           - url: http://portal:3005
 
-    keycloak-svc:
+    identity-svc:
       loadBalancer:
         servers:
-          - url: http://keycloak:8080
+          - url: http://identity:8080

@@ -1,94 +1,98 @@
-# NexusQuantum Analytics Installer
+# NQRust Identity Portal Installer
 
-An interactive Terminal User Interface (TUI) installer for deploying the NexusQuantum Analytics stack using Docker Compose.
+An interactive Terminal User Interface (TUI) installer for deploying the NQRust Identity Portal stack using Docker Compose.
 
 ## Overview
 
-This installer provides a guided setup experience for the NexusQuantum Analytics platform, which includes:
-- **Analytics Engine** - Core query processing engine
-- **Ibis Server** - Python-based data transformation layer
-- **Analytics Service** - AI-powered analytics assistance
-- **Analytics UI** - Web-based user interface with user management
-- **Qdrant** - Vector database for embeddings
-- **Northwind DB** - PostgreSQL demo database
+This installer provides a guided two-phase setup experience for the NQRust Identity Portal platform, which includes:
 
-### New Features (v2.0+)
-- **User Management** - Built-in authentication with email/password and optional OAuth (Google/GitHub)
-- **Multi-Dashboard Support** - Create and manage multiple dashboards per user
-- **Sharing** - Share dashboards and chat history with team members
-- **Role-Based Access Control** - Admin, Editor, and Viewer roles
+- **Traefik** - Reverse proxy with automatic HTTPS (self-signed TLS)
+- **Identity** - OIDC identity provider (OAuth2/OIDC)
+- **Identity DB** - PostgreSQL database for Identity and license data
+- **Portal** - NQRust Identity Portal (Next.js) with license gate
+
+### Key Features
+- **HTTPS by default** - All services served over HTTPS via Traefik self-signed certificates
+- **License gate** - Portal and Identity access protected by license verification
+- **Two-phase install** - Phase 1 starts the stack, Phase 2 applies Identity (OAuth) client configuration
+- **Airgapped support** - Offline installation with bundled Docker images
 
 ## Prerequisites
 
-Before running the installer, ensure you have the **Docker stack** (required by `nqrust-analytics install`):
-
 1. **Docker** (engine + CLI) — [Install Docker](https://docs.docker.com/get-docker/)
-2. **Docker Compose v2** — `docker compose` (Compose v2 plugin; not legacy `docker-compose`)
-3. **Docker Buildx** (BuildKit) — `docker buildx` (usually included with Docker CE)
-4. **Access to Docker daemon** — run with `sudo` or add your user to the `docker` group
-
-5. **Rust** (for building from source) — [Install Rust](https://rustup.rs/)
-6. **GitHub Personal Access Token** (PAT) with `read:packages` scope
-   - Required to pull container images from GitHub Container Registry (ghcr.io)
-   - [Create a PAT](https://github.com/settings/tokens/new) with the `read:packages` permission
+2. **Docker Compose v2** — `docker compose` (not legacy `docker-compose`)
+3. **GitHub Personal Access Token** (PAT) with `read:packages` scope
+   - Required to pull container images from `ghcr.io`
+   - [Create a PAT](https://github.com/settings/tokens/new) with `read:packages` permission
 
 ## Quick Start
 
+Official install uses the **Debian package** (`.deb`) for **amd64**. Releases publish `nqrust-portal_amd64.deb` (and a versioned name like `nqrust-portal_0.0.1_amd64.deb`); the one-liner and `scripts/install/install.sh` match [installer-NQRust-Analytics](https://github.com/NexusQuantum/installer-NQRust-Analytics) behavior (download, `SHA256SUMS` verify, `apt`/`dpkg` install).
+
 ### Option A: One-liner install (preferred)
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/NexusQuantum/installer-NQRust-Analytics/main/scripts/install/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/NexusQuantum/installer-NQRust-Portal/main/scripts/install/install.sh | bash
 ```
-Installs the latest `.deb` from GitHub Releases and makes `nqrust-analytics` available in `$PATH`. Then run:
+
+Installs the latest `.deb` from GitHub Releases and adds `nqrust-portal` to your `PATH` (typically `/usr/bin`). Then run:
+
 ```bash
-nqrust-analytics install
+nqrust-portal
 ```
 
 ### Option B: Install from release asset
-1) Download the latest `.deb` from the [Releases](https://github.com/NexusQuantum/installer-NQRust-Analytics/releases) page. Example:
+
+1. Download the latest `.deb` from the [Releases](https://github.com/NexusQuantum/installer-NQRust-Portal/releases) page. Example:
+
 ```bash
-curl -LO https://github.com/NexusQuantum/installer-NQRust-Analytics/releases/latest/download/nqrust-analytics_*.deb
+curl -LO https://github.com/NexusQuantum/installer-NQRust-Portal/releases/latest/download/nqrust-portal_amd64.deb
+curl -LO https://github.com/NexusQuantum/installer-NQRust-Portal/releases/latest/download/SHA256SUMS
 ```
-2) Install the package (adds the `nqrust-analytics` binary into `/usr/bin`):
+
+2. Verify (recommended):
+
 ```bash
-sudo apt install ./nqrust-analytics_*.deb
-# or: sudo dpkg -i nqrust-analytics_*.deb
+grep nqrust-portal_amd64.deb SHA256SUMS | sha256sum -c -
 ```
-3) Run the installer:
+
+3. Install the package and run:
+
 ```bash
-nqrust-analytics install
+sudo apt install ./nqrust-portal_amd64.deb
+# or: sudo dpkg -i nqrust-portal_amd64.deb
+nqrust-portal
 ```
-> Note: the binary name is `nqrust-analytics` (replaces the older `installer-analytics`).
 
 ### Option C: Build from source
 
-1) Clone the repository
+1. Clone the repository:
 ```bash
-git clone https://github.com/NexusQuantum/installer-NQRust-Analytics.git
-cd installer-NQRust-Analytics
+git clone https://github.com/NexusQuantum/installer-NQRust-Portal.git
+cd installer-NQRust-Portal
 ```
 
-2) Authenticate with GitHub Container Registry
+2. Authenticate with GitHub Container Registry:
 ```bash
 docker login ghcr.io
 # Username: your-github-username
 # Password: your-personal-access-token (NOT your GitHub password)
 ```
 
-3) Run the installer
+3. Run the installer:
 ```bash
 cargo run
 ```
 
-### Option D: Airgapped/Offline Installation
+### Option D: Airgapped / Offline Installation
 
-For environments **without internet access** (airgapped, isolated networks, or offline VMs):
+For environments **without internet access** (airgapped, isolated networks, offline VMs):
 
 **On a machine with internet (build machine):**
 ```bash
-# 1. Clone and checkout airgapped branch
-git clone https://github.com/NexusQuantum/installer-NQRust-Analytics.git
-cd installer-NQRust-Analytics
-git checkout airgapped-single-binary
+# 1. Clone the repository
+git clone https://github.com/NexusQuantum/installer-NQRust-Portal.git
+cd installer-NQRust-Portal
 
 # 2. Login to GitHub Container Registry
 docker login ghcr.io
@@ -99,254 +103,148 @@ docker login ghcr.io
 
 **Transfer to airgapped machine** (via USB/SCP/physical media):
 ```bash
-# Copy the single binary file
-cp nqrust-analytics-airgapped /path/to/transfer/
+cp nqrust-portal-airgapped /path/to/transfer/
+cp nqrust-portal-airgapped.sha256 /path/to/transfer/
 ```
 
 **On airgapped machine (no internet needed):**
 ```bash
-# 0. (Optional) If Docker is not installed: use Docker airgapped installer first
-#    See docs/AIRGAPPED-INSTALLATION.md — "Docker Airgapped Installer"
+# 1. Verify checksum
+sha256sum -c nqrust-portal-airgapped.sha256
 
-# 1. Make executable
-chmod +x nqrust-analytics-airgapped
+# 2. Make executable
+chmod +x nqrust-portal-airgapped
 
-# 2. Run installer (auto-extracts and loads Docker images)
-./nqrust-analytics-airgapped install
+# 3. Run installer (auto-extracts and loads Docker images)
+./nqrust-portal-airgapped
 ```
 
-> 📖 **See [Airgapped Installation Guide](docs/AIRGAPPED-INSTALLATION.md) for complete instructions, Docker offline installer, and FAQ.**
+Or download the pre-built airgapped binary directly from the [Releases](https://github.com/NexusQuantum/installer-NQRust-Portal/releases) page (`nqrust-portal-airgapped`).
 
-## Usage Guide
+> **CI / releases:** The `Build Airgapped Binary` workflow (`.github/workflows/build-airgapped.yml`) logs in to GHCR using the repository secret **`GHCR_TOKEN`** (a GitHub PAT with `read:packages`). Add it under *Settings → Secrets and variables → Actions* or that job will fail when pulling images; the `.deb` **Release** workflow does not depend on it.
 
-The installer provides an interactive TUI with the following screens:
+## Installation Guide
 
-### 1. Confirmation Screen
-- Shows whether `.env` and `config.yaml` files exist
-- Options:
-  - **Generate .env** - Create environment configuration
-  - **Generate config.yaml** - Select AI provider configuration
-  - **Proceed** - Start installation (only if both files exist)
-  - **Cancel** - Exit installer
+### Phase 1 — Initial Setup
 
-### 2. Environment Setup (if .env missing)
-- Configure:
-  - OpenAI API Key (required)
-  - Generation Model (default: `gpt-4o-mini`)
-  - UI Port (default: `3000`)
-  - AI Service Port (default: `5555`)
-- Navigation:
-  - `↑/↓` - Move between fields
-  - `Enter` - Edit field
-  - `Ctrl+S` - Save and continue
-  - `Esc` - Cancel
+The installer will prompt for:
 
-### 3. Config Selection (if config.yaml missing)
-- Choose from 13+ AI provider templates:
-  - OpenAI, Anthropic, Azure OpenAI
-  - DeepSeek, Google Gemini, xAI Grok
-  - Groq, Ollama, LM Studio
-  - And more...
-- Navigation:
-  - `↑/↓` - Browse providers
-  - `Enter` - Select provider
-  - `Esc` - Cancel
+| Field | Description | Default |
+|-------|-------------|---------|
+| Hostname / IP | Server IP or domain (used for HTTPS URLs) | — |
+| Portal Port | HTTPS port for the portal | `8083` |
+| Identity Port | HTTPS port for Identity | `8082` |
+| Admin Password | Identity admin bootstrap password | — |
+| Realm Name | Realm name in Identity admin | `master` |
+| Client ID | OAuth client ID for the portal | `nqrust-portal` |
+| Client Secret | OAuth client secret (leave blank for Phase 1) | — |
 
-### 4. Installation Progress
-- Real-time logs of Docker Compose operations
-- Progress bar showing completion percentage
-- Service-by-service status updates
+After Phase 1 completes:
+- Portal is accessible at `https://<hostname>:8083`
+- Identity admin console at `https://<hostname>:8082/admin`
+- A license key is required to access the portal
 
-### 5. Success/Error Screen
-- Shows installation result
-- Displays full installation logs
-- `Ctrl+C` to exit
+### Phase 2 — Apply Identity client configuration
 
-## Configuration
+After configuring the OAuth client in the Identity admin console:
 
-### Environment Variables (.env)
+1. Open Identity admin console: `https://<hostname>:8082/admin`
+2. Create/configure your realm and client (`nqrust-portal`)
+3. Set Valid redirect URIs to the OAuth callback URL required by the portal app (typically under `/api/auth/callback/…` on the portal host)
+4. Set all URLs (Root, Home, Web origins, Admin) to `https://<hostname>:8083`
+5. Copy the client secret
+6. Re-run the installer and select **Phase 2** to apply the new secret and realm
 
-The installer generates a `.env` file based on `.env.example`. Key variables:
+## Post-Installation
 
-```bash
-# Service Ports
-ANALYTICS_ENGINE_PORT=8080
-ANALYTICS_UI_PORT=3000
-IBIS_SERVER_PORT=8000
-ANALYTICS_AI_SERVICE_PORT=5555
+1. **Activate license** — Visit `https://<hostname>:8083/license-activation` and enter your license key
+2. **Login** — Authenticate via Identity (OIDC)
+3. **Access portal** — `https://<hostname>:8083/dashboard`
 
-# AI Configuration
-OPENAI_API_KEY=your-api-key-here
-GENERATION_MODEL=gpt-4o-mini
-
-# Database
-DB_TYPE=pg
-PG_URL=postgres://demo:demo123@northwind-db:5432/northwind
-POSTGRES_DB=northwind
-POSTGRES_USER=demo
-POSTGRES_PASSWORD=demo123
-
-# Authentication (auto-generated by installer)
-JWT_SECRET=<auto-generated-secure-key>
-
-# OAuth Configuration (optional)
-GOOGLE_OAUTH_ENABLED=false
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-GITHUB_OAUTH_ENABLED=false
-GITHUB_CLIENT_ID=
-GITHUB_CLIENT_SECRET=
-```
-
-**Note:** The installer automatically generates a secure `JWT_SECRET` for authentication. If you need to enable OAuth login, edit the `.env` file after installation and set the appropriate OAuth credentials.
-
-### AI Provider Configuration (config.yaml)
-
-The installer uses modular templates from `config_templates/`:
-- `common/` - Shared engine, pipeline, and settings
-- `providers/` - Provider-specific configurations
-
-Templates are embedded in the binary at compile time.
-
-## Post-Installation Setup
-
-After the installer completes successfully:
-
-1. **Access the application** at http://localhost:3000
-
-2. **Register the first user account**
-   - The first user to register will automatically become an administrator
-   - Use a valid email address and secure password
-
-3. **Optional: Enable OAuth login**
-   - Edit `.env` and set `GOOGLE_OAUTH_ENABLED=true` or `GITHUB_OAUTH_ENABLED=true`
-   - Add your OAuth client ID and secret from:
-     - Google: https://console.cloud.google.com/apis/credentials
-     - GitHub: https://github.com/settings/developers
-   - Restart the services: `docker compose restart analytics-ui`
-
-4. **Create your first dashboard**
-   - Navigate to the Home page
-   - Click "New Dashboard" to create a personalized dashboard
-   - Start querying your data using natural language
-
-5. **Invite team members**
-   - Share dashboards with other users (view or edit permissions)
-   - Share chat history threads for collaboration
+> **Note:** The browser will show a certificate warning because Traefik uses a self-signed certificate. This is expected for self-hosted deployments. Accept the warning to proceed.
 
 ## Architecture
 
 ```
-installer-analytics/
+installer-NQRust-Portal/
 ├── src/
-│   ├── app/           # Application state and logic
-│   ├── ui/            # TUI rendering components
-│   ├── templates.rs   # Config template system
-│   └── utils.rs       # File utilities
-├── config_templates/  # Modular config templates
-│   ├── common/        # Shared sections
-│   └── providers/     # Provider-specific configs
-├── bootstrap/         # Docker initialization scripts
+│   ├── app/           # Application state and two-phase install logic
+│   └── ui/            # TUI screens (home, form, progress, success)
+├── traefik/
+│   └── dynamic.yml    # Traefik HTTPS routers, forwardAuth, services
+├── db/
+│   └── init.sql       # PostgreSQL schema (license_activations table)
+├── scripts/
+│   └── airgapped/     # Scripts for building offline binary
 ├── docker-compose.yaml
-├── env_template       # Template for .env generation
-└── northwind.sql      # Demo database schema
+└── env_template       # Template for .env generation
 ```
+
+**Services:**
+
+| Container | Image | Port (external) |
+|-----------|-------|-----------------|
+| `nqrust-traefik` | `traefik:v3.4` | 8083 (portal), 8082 (identity), 8081 (dashboard) |
+| `nqrust-identity` | `ghcr.io/nexusquantum/nqrust-identity:latest` | via Traefik |
+| `nqrust-identity-db` | `postgres:16-alpine` | internal only |
+| `nqrust-identity-portal` | `ghcr.io/nexusquantum/nqrust-identity-portal:latest` | via Traefik |
 
 ## Troubleshooting
 
-### "unauthorized" error when pulling images
+### "unauthorized" when pulling images
 
-**Problem**: Docker cannot pull images from `ghcr.io`
-
-**Solution**: 
-1. Create a GitHub Personal Access Token with `read:packages` scope
-2. Run `docker login ghcr.io` and use your PAT as the password
-
-### ".env file detected but doesn't exist"
-
-**Problem**: The installer detects a `.env` file in a parent directory
-
-**Solution**: This was fixed in recent versions. Update to the latest version or ensure no `.env` exists in parent directories.
-
-### Port conflicts
-
-**Problem**: Services fail to start due to port conflicts
-
-**Solution**: Edit `.env` and change the conflicting ports:
 ```bash
-ANALYTICS_UI_PORT=3001  # Change from 3000
+docker login ghcr.io
+# Use GitHub PAT with read:packages scope as password
 ```
 
-### "password authentication failed for user \"analytics\"" / "Role \"analytics\" does not exist"
+### Port conflict
 
-**Problem**: Analytics UI cannot connect to PostgreSQL; Postgres logs show that the role `analytics` does not exist.
+Edit `.env` and change `PORTAL_PORT` or `IDENTITY_PORT`, then restart:
+```bash
+docker compose up -d
+```
 
-**Cause**: PostgreSQL only runs scripts in `/docker-entrypoint-initdb.d/` when the data volume is **empty** (first run). If you had already run the stack before the analytics DB/user was added, the existing `northwind_data` volume was reused and the init script that creates the `analytics` user never ran.
+### Certificate warning in browser
 
-**Solution** (pick one):
+Expected behavior — Traefik uses a self-signed certificate. Click "Advanced" → "Proceed" in the browser.
 
-1. **Recommended (with current installer)**  
-   Re-run the installer or `docker compose up -d` after pulling the latest compose bundle. The stack now includes an **analytics-db-init** service that runs idempotently after Postgres is up and creates the `analytics` user and database if missing. Ensure `scripts/ensure-analytics-db.sh` exists in your project directory (the installer writes it if missing).
+### Portal stuck on license activation after clearing cookies
 
-2. **One-time manual fix**  
-   Create the user and database once, then restart the UI:
-   ```bash
-   docker exec -i analytics-northwind-db-1 psql -U demo -d postgres -c "CREATE USER analytics WITH PASSWORD 'analytics123'; CREATE DATABASE analytics OWNER analytics; GRANT ALL PRIVILEGES ON DATABASE analytics TO analytics;"
-   docker compose restart analytics-ui
-   ```
-   (Container name may differ; use `docker ps` to find the northwind-db container.)
-
-3. **Fresh start (data loss)**  
-   Remove the Postgres volume so init runs again:
-   ```bash
-   docker compose down
-   docker volume rm analytics_northwind_data
-   docker compose up -d
-   ```
+Normal behavior if license is in the database — clear the negative cache by waiting a moment and refreshing, or restart the portal container:
+```bash
+docker compose restart portal
+```
 
 ### Build errors
 
-**Problem**: Rust compilation fails
-
-**Solution**:
 ```bash
-# Clean build artifacts
-cargo clean
-
-# Rebuild
-cargo build --release
+cargo clean && cargo build --release
 ```
 
 ## Development
 
-### Building from Source
-
 ```bash
-# Debug build
-cargo build
+# Debug run
+cargo run
 
-# Release build (optimized)
+# Release build
 cargo build --release
 
-# Run tests
-cargo test
+# Format
+cargo fmt
+
+# Lint
+cargo clippy
 ```
-
-### Project Structure
-
-- **App State** (`src/app/mod.rs`) - Main application logic and state machine
-- **UI Components** (`src/ui/`) - Ratatui-based TUI screens
-- **Templates** (`src/templates.rs`) - Config generation system
-- **Utils** (`src/utils.rs`) - File detection and project root resolution
 
 ## License
 
 Copyright (c) Idham <idhammultazam7@gmail.com>
 
-This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
+This project is licensed under the MIT License — see the [LICENSE](./LICENSE) file for details.
 
 ## Support
 
-For issues and questions:
-- GitHub Issues: [NexusQuantum/installer-NQRust-Analytics](https://github.com/NexusQuantum/installer-NQRust-Analytics/issues)
+- GitHub Issues: [NexusQuantum/installer-NQRust-Portal](https://github.com/NexusQuantum/installer-NQRust-Portal/issues)
 - Email: idhammultazam7@gmail.com

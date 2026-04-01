@@ -2,9 +2,9 @@
 pub enum AppState {
     RegistrySetup,
     Home,
-    KeycloakForm,
-    InstallingKeycloak,
-    KeycloakSuccess,
+    IdentityForm,
+    InstallingIdentity,
+    IdentitySuccess,
     PortalForm,
     InstallingPortal,
     PortalSuccess,
@@ -13,7 +13,7 @@ pub enum AppState {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum HomeMenuItem {
-    InstallKeycloak,
+    InstallIdentity,
     InstallPortal,
     UpdateToken,
     Exit,

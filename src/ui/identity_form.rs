@@ -8,11 +8,12 @@ use ratatui::{
 
 use crate::app::App;
 use crate::app::form_data::{
-    FocusState, KC_ADMIN_PASSWORD, KC_ADMIN_USERNAME, KC_DB_PASSWORD, KC_DB_USER,
+    FocusState, IDENTITY_ADMIN_PASSWORD, IDENTITY_ADMIN_USERNAME, IDENTITY_DB_PASSWORD,
+    IDENTITY_DB_USER,
 };
 use crate::ui::{get_orange_accent, get_orange_color};
 
-pub fn render_keycloak_form(frame: &mut Frame, app: &App) {
+pub fn render_identity_form(frame: &mut Frame, app: &App) {
     let area = frame.area();
 
     let chunks = Layout::default()
@@ -28,7 +29,7 @@ pub fn render_keycloak_form(frame: &mut Frame, app: &App) {
         .split(area);
 
     // Title
-    let title = Paragraph::new("⚙  Install Keycloak — Phase 1 of 2")
+    let title = Paragraph::new("⚙  Install Identity — Phase 1 of 2")
         .style(
             Style::default()
                 .fg(get_orange_color())
@@ -43,14 +44,14 @@ pub fn render_keycloak_form(frame: &mut Frame, app: &App) {
     frame.render_widget(title, chunks[0]);
 
     // Form fields
-    let total = app.keycloak_form.get_total_fields();
+    let total = app.identity_form.get_total_fields();
     let mut form_lines = vec![Line::from("")];
 
     for i in 0..total {
-        let label = app.keycloak_form.get_field_label(i);
-        let value = app.keycloak_form.get_field_value(i);
-        let is_focused = matches!(&app.keycloak_form.focus_state, FocusState::Field(f) if *f == i);
-        let is_editing = is_focused && app.keycloak_form.editing;
+        let label = app.identity_form.get_field_label(i);
+        let value = app.identity_form.get_field_value(i);
+        let is_focused = matches!(&app.identity_form.focus_state, FocusState::Field(f) if *f == i);
+        let is_editing = is_focused && app.identity_form.editing;
 
         let display = if value.is_empty() && !is_editing {
             "<enter value>".to_string()
@@ -77,9 +78,9 @@ pub fn render_keycloak_form(frame: &mut Frame, app: &App) {
         form_lines.push(Line::from(""));
     }
 
-    if !app.keycloak_form.error_message.is_empty() {
+    if !app.identity_form.error_message.is_empty() {
         form_lines.push(Line::from(Span::styled(
-            format!("  ⚠  {}", app.keycloak_form.error_message),
+            format!("  ⚠  {}", app.identity_form.error_message),
             Style::default().fg(Color::Red),
         )));
     }
@@ -106,7 +107,10 @@ pub fn render_keycloak_form(frame: &mut Frame, app: &App) {
         Line::from(Span::styled(
             format!(
                 "  Admin: {} / {}   DB user: {} / {}",
-                KC_ADMIN_USERNAME, KC_ADMIN_PASSWORD, KC_DB_USER, KC_DB_PASSWORD
+                IDENTITY_ADMIN_USERNAME,
+                IDENTITY_ADMIN_PASSWORD,
+                IDENTITY_DB_USER,
+                IDENTITY_DB_PASSWORD
             ),
             Style::default().fg(Color::DarkGray),
         )),
@@ -122,8 +126,8 @@ pub fn render_keycloak_form(frame: &mut Frame, app: &App) {
     frame.render_widget(info_widget, chunks[2]);
 
     // Buttons
-    let save_focused = matches!(&app.keycloak_form.focus_state, FocusState::SaveButton);
-    let cancel_focused = matches!(&app.keycloak_form.focus_state, FocusState::CancelButton);
+    let save_focused = matches!(&app.identity_form.focus_state, FocusState::SaveButton);
+    let cancel_focused = matches!(&app.identity_form.focus_state, FocusState::CancelButton);
 
     let save_style = if save_focused {
         Style::default()
@@ -146,7 +150,7 @@ pub fn render_keycloak_form(frame: &mut Frame, app: &App) {
 
     let button_line = Line::from(vec![
         Span::raw("  "),
-        Span::styled(" Install Keycloak ", save_style),
+        Span::styled(" Install Identity ", save_style),
         Span::raw("   "),
         Span::styled(" Cancel ", cancel_style),
     ]);

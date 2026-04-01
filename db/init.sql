@@ -1,5 +1,5 @@
 -- Creates a separate database for the NQRust Identity Portal
--- This runs inside the nqrust-keycloak-db container on first startup
+-- This runs inside the nqrust-identity-db container on first startup
 
 CREATE DATABASE nqrust_portal;
 

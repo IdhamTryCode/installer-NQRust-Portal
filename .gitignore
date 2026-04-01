@@ -28,8 +28,8 @@ Thumbs.db
 
 # Airgapped build artifacts (large files, do not push)
 /build/
-nqrust-analytics-airgapped
-nqrust-analytics-airgapped.sha256
+nqrust-portal-airgapped
+nqrust-portal-airgapped.sha256
 
 # Local backups
 backup*/

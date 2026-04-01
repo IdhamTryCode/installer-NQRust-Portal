@@ -18,7 +18,7 @@ pub mod form_data;
 pub mod registry_form;
 pub mod state;
 
-pub use form_data::{KeycloakFormData, PortalFormData};
+pub use form_data::{IdentityFormData, PortalFormData};
 use registry_form::RegistryForm;
 pub use state::{AppState, HomeMenuItem};
 
@@ -36,13 +36,13 @@ pub struct App {
     pub current_service: String,
     pub total_services: usize,
     pub completed_services: usize,
-    pub keycloak_form: KeycloakFormData,
+    pub identity_form: IdentityFormData,
     pub portal_form: PortalFormData,
     pub registry_form: RegistryForm,
     pub registry_status: Option<String>,
     pub ghcr_token: Option<String>,
     pub menu_selection: usize,
-    pub keycloak_running: bool,
+    pub identity_running: bool,
     pub portal_running: bool,
     pub install_phase: String,
 }
@@ -67,7 +67,7 @@ impl App {
             AppState::RegistrySetup
         };
 
-        let (keycloak_running, portal_running) = Self::detect_containers_sync();
+        let (identity_running, portal_running) = Self::detect_containers_sync();
 
         Self {
             running: true,
@@ -77,13 +77,13 @@ impl App {
             current_service: String::new(),
             total_services: 3,
             completed_services: 0,
-            keycloak_form: KeycloakFormData::new(),
+            identity_form: IdentityFormData::new(),
             portal_form: PortalFormData::new(),
             registry_form,
             registry_status: None,
             ghcr_token: initial_token,
             menu_selection: 0,
-            keycloak_running,
+            identity_running,
             portal_running,
             install_phase: String::new(),
         }
@@ -98,19 +98,20 @@ impl App {
 
         match output {
             Ok(out) => {
-                let text = String::from_utf8_lossy(&out.stdout).to_lowercase();
-                let keycloak = text
+                // `docker compose ps --services` prints Compose service names (not image names).
+                let text = String::from_utf8_lossy(&out.stdout);
+                let identity = text
                     .lines()
-                    .any(|l| l.contains("keycloak") && !l.contains("db"));
-                let portal = text.lines().any(|l| l.contains("portal"));
-                (keycloak, portal)
+                    .any(|l| matches!(l.trim(), "identity" | "keycloak"));
+                let portal = text.lines().any(|l| matches!(l.trim(), "portal"));
+                (identity, portal)
             }
             Err(_) => (false, false),
         }
     }
 
     pub fn get_menu_items(&self) -> Vec<HomeMenuItem> {
-        let mut items = vec![HomeMenuItem::InstallKeycloak, HomeMenuItem::InstallPortal];
+        let mut items = vec![HomeMenuItem::InstallIdentity, HomeMenuItem::InstallPortal];
         if self.ghcr_token.is_some() {
             items.push(HomeMenuItem::UpdateToken);
         }
@@ -149,32 +150,31 @@ impl App {
                 AppState::Home => {
                     self.handle_home_events()?;
                 }
-                AppState::KeycloakForm => {
-                    self.handle_keycloak_form_events()?;
+                AppState::IdentityForm => {
+                    self.handle_identity_form_events()?;
                 }
-                AppState::InstallingKeycloak => {
-                    self.install_phase = "Keycloak".to_string();
+                AppState::InstallingIdentity => {
+                    self.install_phase = "Identity".to_string();
                     self.logs
-                        .push("🚀 Starting Keycloak & Portal installation...".to_string());
+                        .push("🚀 Starting Identity & Portal installation...".to_string());
                     let result = self
                         .run_docker_compose_services(
-                            &["traefik", "keycloak-db", "keycloak", "portal"],
+                            &["traefik", "identity-db", "identity", "portal"],
                             &mut terminal,
                         )
                         .await;
                     match result {
                         Ok(_) => {
                             self.progress = 100.0;
-                            self.state = AppState::KeycloakSuccess;
+                            self.state = AppState::IdentitySuccess;
                         }
                         Err(e) => {
-                            self.state =
-                                AppState::Error(format!("Installation failed: {}", e));
+                            self.state = AppState::Error(format!("Installation failed: {}", e));
                         }
                     }
                 }
-                AppState::KeycloakSuccess => {
-                    self.handle_keycloak_success_events()?;
+                AppState::IdentitySuccess => {
+                    self.handle_identity_success_events()?;
                 }
                 AppState::PortalForm => {
                     self.handle_portal_form_events()?;
@@ -182,7 +182,7 @@ impl App {
                 AppState::InstallingPortal => {
                     self.install_phase = "Portal".to_string();
                     self.logs
-                        .push("🔄 Applying Keycloak config and restarting portal...".to_string());
+                        .push("🔄 Applying Identity config and restarting portal...".to_string());
                     let result = self.restart_portal_with_new_config(&mut terminal).await;
                     match result {
                         Ok(_) => {
@@ -190,8 +190,7 @@ impl App {
                             self.state = AppState::PortalSuccess;
                         }
                         Err(e) => {
-                            self.state =
-                                AppState::Error(format!("Portal restart failed: {}", e));
+                            self.state = AppState::Error(format!("Portal restart failed: {}", e));
                         }
                     }
                 }
@@ -249,9 +248,9 @@ impl App {
                         KeyCode::Enter => {
                             if let Some(item) = items.get(self.menu_selection) {
                                 match item {
-                                    HomeMenuItem::InstallKeycloak => {
-                                        self.keycloak_form = KeycloakFormData::new();
-                                        self.state = AppState::KeycloakForm;
+                                    HomeMenuItem::InstallIdentity => {
+                                        self.identity_form = IdentityFormData::new();
+                                        self.state = AppState::IdentityForm;
                                     }
                                     HomeMenuItem::InstallPortal => {
                                         self.portal_form = PortalFormData::new();
@@ -286,36 +285,36 @@ impl App {
         Ok(())
     }
 
-    fn handle_keycloak_form_events(&mut self) -> Result<()> {
+    fn handle_identity_form_events(&mut self) -> Result<()> {
         use form_data::FocusState;
 
         if event::poll(std::time::Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
-                    if self.keycloak_form.editing {
+                    if self.identity_form.editing {
                         match key.code {
                             KeyCode::Char(c) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
-                                if let FocusState::Field(i) = self.keycloak_form.focus_state.clone()
+                                if let FocusState::Field(i) = self.identity_form.focus_state.clone()
                                 {
-                                    if let Some(val) = self.keycloak_form.get_field_value_mut(i) {
+                                    if let Some(val) = self.identity_form.get_field_value_mut(i) {
                                         val.push(c);
                                     }
                                 }
                             }
                             KeyCode::Backspace => {
-                                if let FocusState::Field(i) = self.keycloak_form.focus_state.clone()
+                                if let FocusState::Field(i) = self.identity_form.focus_state.clone()
                                 {
-                                    if let Some(val) = self.keycloak_form.get_field_value_mut(i) {
+                                    if let Some(val) = self.identity_form.get_field_value_mut(i) {
                                         val.pop();
                                     }
                                 }
                             }
                             KeyCode::Enter | KeyCode::Esc => {
-                                self.keycloak_form.editing = false;
+                                self.identity_form.editing = false;
                             }
                             KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                                self.keycloak_form.editing = false;
-                                self.try_save_keycloak_form();
+                                self.identity_form.editing = false;
+                                self.try_save_identity_form();
                             }
                             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                                 self.running = false;
@@ -327,30 +326,30 @@ impl App {
 
                     match key.code {
                         KeyCode::Up | KeyCode::BackTab => {
-                            self.keycloak_form.focus_state = match &self.keycloak_form.focus_state {
+                            self.identity_form.focus_state = match &self.identity_form.focus_state {
                                 FocusState::Field(0) => FocusState::CancelButton,
                                 FocusState::Field(i) => FocusState::Field(i - 1),
                                 FocusState::SaveButton => {
-                                    FocusState::Field(self.keycloak_form.get_total_fields() - 1)
+                                    FocusState::Field(self.identity_form.get_total_fields() - 1)
                                 }
                                 FocusState::CancelButton => FocusState::SaveButton,
                             };
                         }
                         KeyCode::Down | KeyCode::Tab => {
-                            let total = self.keycloak_form.get_total_fields();
-                            self.keycloak_form.focus_state = match &self.keycloak_form.focus_state {
+                            let total = self.identity_form.get_total_fields();
+                            self.identity_form.focus_state = match &self.identity_form.focus_state {
                                 FocusState::Field(i) if *i + 1 < total => FocusState::Field(i + 1),
                                 FocusState::Field(_) => FocusState::SaveButton,
                                 FocusState::SaveButton => FocusState::CancelButton,
                                 FocusState::CancelButton => FocusState::Field(0),
                             };
                         }
-                        KeyCode::Enter => match &self.keycloak_form.focus_state {
+                        KeyCode::Enter => match &self.identity_form.focus_state {
                             FocusState::Field(_) => {
-                                self.keycloak_form.editing = true;
+                                self.identity_form.editing = true;
                             }
                             FocusState::SaveButton => {
-                                self.try_save_keycloak_form();
+                                self.try_save_identity_form();
                             }
                             FocusState::CancelButton => {
                                 self.state = AppState::Home;
@@ -360,7 +359,7 @@ impl App {
                             self.state = AppState::Home;
                         }
                         KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                            self.try_save_keycloak_form();
+                            self.try_save_identity_form();
                         }
                         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                             self.running = false;
@@ -373,8 +372,8 @@ impl App {
         Ok(())
     }
 
-    fn try_save_keycloak_form(&mut self) {
-        if self.keycloak_form.validate() {
+    fn try_save_identity_form(&mut self) {
+        if self.identity_form.validate() {
             if let Err(e) = self.generate_env() {
                 self.state = AppState::Error(format!("Failed to generate .env: {}", e));
                 return;
@@ -383,7 +382,7 @@ impl App {
             self.completed_services = 0;
             self.total_services = 4;
             self.logs.clear();
-            self.state = AppState::InstallingKeycloak;
+            self.state = AppState::InstallingIdentity;
         }
     }
 
@@ -486,7 +485,7 @@ impl App {
         }
     }
 
-    fn handle_keycloak_success_events(&mut self) -> Result<()> {
+    fn handle_identity_success_events(&mut self) -> Result<()> {
         if event::poll(std::time::Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
@@ -696,12 +695,11 @@ impl App {
 
         let mut content = utils::ENV_TEMPLATE.to_string();
         content = content.replace("{{NEXTAUTH_SECRET}}", &nextauth_secret);
-        content = content.replace("{{HOSTNAME}}", &self.keycloak_form.hostname);
-        content = content.replace("{{KEYCLOAK_PORT}}", &self.keycloak_form.keycloak_port);
-        content = content.replace("{{PORTAL_PORT}}", &self.keycloak_form.portal_port);
-        // These are also used directly by docker-compose ports mapping
-        // (already replaced above via KEYCLOAK_PORT and PORTAL_PORT placeholders)
-        content = content.replace("{{REALM_NAME}}", "myrealm");
+        content = content.replace("{{HOSTNAME}}", &self.identity_form.hostname);
+        content = content.replace("{{IDENTITY_PORT}}", &self.identity_form.identity_port);
+        content = content.replace("{{PORTAL_PORT}}", &self.identity_form.portal_port);
+        // PORTAL_PORT / IDENTITY_PORT: used by docker-compose and portal .env
+        content = content.replace("{{REALM_NAME}}", "master");
         content = content.replace("{{KEYCLOAK_CLIENT_ID}}", "nqrust-portal");
         content = content.replace("{{KEYCLOAK_CLIENT_SECRET}}", "");
 
@@ -716,19 +714,22 @@ impl App {
         let existing = if env_path.exists() {
             fs::read_to_string(&env_path)?
         } else {
-            return Err(eyre!(".env file not found. Please install Keycloak first."));
+            return Err(eyre!(".env file not found. Please install Identity first."));
         };
 
-        // Extract hostname and keycloak_port from existing KEYCLOAK_EXTERNAL_HOST line
-        let hostname = self.keycloak_form.hostname.clone();
-        let keycloak_port = self.keycloak_form.keycloak_port.clone();
+        // Extract hostname and identity port from the external host URL line in `.env`
+        let hostname = self.identity_form.hostname.clone();
+        let identity_port = self.identity_form.identity_port.clone();
 
-        // Try to read from existing .env if keycloak_form is empty
-        let (hostname, keycloak_port) = if hostname.is_empty() {
+        // Try to read from existing .env if identity_form is empty
+        let (hostname, identity_port) = if hostname.is_empty() {
             let extracted = existing
                 .lines()
                 .find(|l| l.starts_with("KEYCLOAK_EXTERNAL_HOST="))
-                .and_then(|l| l.strip_prefix("KEYCLOAK_EXTERNAL_HOST=http://"))
+                .and_then(|l| {
+                    l.strip_prefix("KEYCLOAK_EXTERNAL_HOST=https://")
+                        .or_else(|| l.strip_prefix("KEYCLOAK_EXTERNAL_HOST=http://"))
+                })
                 .map(|s| {
                     let parts: Vec<&str> = s.splitn(2, ':').collect();
                     (
@@ -739,7 +740,7 @@ impl App {
                 .unwrap_or(("localhost".to_string(), "8082".to_string()));
             extracted
         } else {
-            (hostname, keycloak_port)
+            (hostname, identity_port)
         };
 
         let realm = &self.portal_form.realm_name;
@@ -754,16 +755,16 @@ impl App {
                 } else if line.starts_with("KEYCLOAK_CLIENT_SECRET=") {
                     format!("KEYCLOAK_CLIENT_SECRET={}", client_secret)
                 } else if line.starts_with("KEYCLOAK_ISSUER=") {
-                    format!("KEYCLOAK_ISSUER=http://keycloak:8080/realms/{}", realm)
+                    format!("KEYCLOAK_ISSUER=http://identity:8080/realms/{}", realm)
                 } else if line.starts_with("KEYCLOAK_EXTERNAL_BASE=") {
                     format!(
-                        "KEYCLOAK_EXTERNAL_BASE=http://{}:{}/realms/{}",
-                        hostname, keycloak_port, realm
+                        "KEYCLOAK_EXTERNAL_BASE=https://{}:{}/realms/{}",
+                        hostname, identity_port, realm
                     )
                 } else if line.starts_with("NEXT_PUBLIC_IDENTITY_ISSUER_URL=") {
                     format!(
-                        "NEXT_PUBLIC_IDENTITY_ISSUER_URL=http://{}:{}/realms/{}",
-                        hostname, keycloak_port, realm
+                        "NEXT_PUBLIC_IDENTITY_ISSUER_URL=https://{}:{}/realms/{}",
+                        hostname, identity_port, realm
                     )
                 } else {
                     line.to_string()
@@ -898,7 +899,7 @@ impl App {
 
         let status = child.wait().await?;
         if status.success() {
-            self.add_log("✅ Portal restarted with new Keycloak config!");
+            self.add_log("✅ Portal restarted with new Identity config!");
             self.progress = 100.0;
             Ok(())
         } else {
@@ -945,7 +946,7 @@ impl App {
     }
 
     fn extract_service_name(&self, line: &str) -> Option<String> {
-        let services = ["traefik", "keycloak-db", "keycloak", "portal"];
+        let services = ["traefik", "identity-db", "identity", "portal"];
         let lower = line.to_lowercase();
         for service in services {
             if lower.contains(service) {
@@ -1001,32 +1002,32 @@ impl App {
         let _ = self.redraw(terminal);
     }
 
-    fn keycloak_url(&self) -> String {
-        let hostname = if self.keycloak_form.hostname.is_empty() {
+    fn identity_admin_url(&self) -> String {
+        let hostname = if self.identity_form.hostname.is_empty() {
             "localhost".to_string()
         } else {
-            self.keycloak_form.hostname.clone()
+            self.identity_form.hostname.clone()
         };
-        let port = if self.keycloak_form.keycloak_port.is_empty() {
+        let port = if self.identity_form.identity_port.is_empty() {
             "8082".to_string()
         } else {
-            self.keycloak_form.keycloak_port.clone()
+            self.identity_form.identity_port.clone()
         };
-        format!("http://{}:{}/admin", hostname, port)
+        format!("https://{}:{}/admin", hostname, port)
     }
 
     fn portal_url(&self) -> String {
-        let hostname = if self.keycloak_form.hostname.is_empty() {
+        let hostname = if self.identity_form.hostname.is_empty() {
             "localhost".to_string()
         } else {
-            self.keycloak_form.hostname.clone()
+            self.identity_form.hostname.clone()
         };
-        let port = if self.keycloak_form.portal_port.is_empty() {
-            "8080".to_string()
+        let port = if self.identity_form.portal_port.is_empty() {
+            "8083".to_string()
         } else {
-            self.keycloak_form.portal_port.clone()
+            self.identity_form.portal_port.clone()
         };
-        format!("http://{}:{}", hostname, port)
+        format!("https://{}:{}", hostname, port)
     }
 
     fn render(&mut self, frame: &mut Frame) {
@@ -1041,20 +1042,20 @@ impl App {
             AppState::Home => {
                 crate::ui::render_home(frame, self);
             }
-            AppState::KeycloakForm => {
-                crate::ui::render_keycloak_form(frame, self);
+            AppState::IdentityForm => {
+                crate::ui::render_identity_form(frame, self);
             }
             AppState::PortalForm => {
                 crate::ui::render_portal_form(frame, self);
             }
-            AppState::InstallingKeycloak => {
+            AppState::InstallingIdentity => {
                 let view = InstallingView {
                     progress: self.progress,
                     current_service: &self.current_service,
                     completed_services: self.completed_services,
                     total_services: self.total_services,
                     logs: &self.logs,
-                    phase: "Keycloak",
+                    phase: "Identity",
                 };
                 crate::ui::render_installing(frame, &view);
             }
@@ -1069,24 +1070,24 @@ impl App {
                 };
                 crate::ui::render_installing(frame, &view);
             }
-            AppState::KeycloakSuccess => {
-                let kc_url = self.keycloak_url();
+            AppState::IdentitySuccess => {
+                let id_url = self.identity_admin_url();
                 let portal_url = self.portal_url();
                 let view = SuccessView {
                     logs: &self.logs,
-                    phase: "Keycloak",
-                    keycloak_url: &kc_url,
+                    phase: "Identity",
+                    identity_admin_url: &id_url,
                     portal_url: &portal_url,
                 };
                 crate::ui::render_success(frame, &view);
             }
             AppState::PortalSuccess => {
-                let kc_url = self.keycloak_url();
+                let id_url = self.identity_admin_url();
                 let portal_url = self.portal_url();
                 let view = SuccessView {
                     logs: &self.logs,
                     phase: "Portal",
-                    keycloak_url: &kc_url,
+                    identity_admin_url: &id_url,
                     portal_url: &portal_url,
                 };
                 crate::ui::render_success(frame, &view);

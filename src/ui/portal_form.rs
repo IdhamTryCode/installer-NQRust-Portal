@@ -105,7 +105,7 @@ pub fn render_portal_form(frame: &mut Frame, app: &App) {
             Style::default().fg(Color::DarkGray),
         )),
         Line::from(Span::styled(
-            "  Keycloak Admin → Clients → [client-id] → Credentials tab",
+            "  Identity Admin → Clients → [client-id] → Credentials tab",
             Style::default().fg(Color::Cyan),
         )),
         Line::from(""),

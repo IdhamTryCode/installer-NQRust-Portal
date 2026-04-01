@@ -8,46 +8,64 @@ services:
       - --api.insecure=true
       - --providers.file.directory=/etc/traefik/dynamic
       - --providers.file.watch=true
-      - --entrypoints.web.address=:80
-      - --entrypoints.identity.address=:82
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.identitysecure.address=:8444
     ports:
-      - "${PORTAL_PORT:-8080}:80"
-      - "${KEYCLOAK_PORT:-8082}:82"
+      - "${PORTAL_PORT:-8083}:443"
+      - "${IDENTITY_PORT:-8082}:8444"
       - "8081:8080"
     volumes:
       - ./traefik:/etc/traefik/dynamic:ro
 
-  keycloak-db:
+  identity-db:
     image: postgres:16-alpine
-    container_name: nqrust-keycloak-db
+    container_name: nqrust-identity-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${KEYCLOAK_DB_NAME:-identity}
-      POSTGRES_USER: ${KEYCLOAK_DB_USER:-identity}
-      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-identity}
+      POSTGRES_DB: ${IDENTITY_DB_NAME:-${KEYCLOAK_DB_NAME:-identity}}
+      POSTGRES_USER: ${IDENTITY_DB_USER:-${KEYCLOAK_DB_USER:-identity}}
+      POSTGRES_PASSWORD: ${IDENTITY_DB_PASSWORD:-${KEYCLOAK_DB_PASSWORD:-identity}}
     volumes:
-      - keycloak-db-data:/var/lib/postgresql/data
+      - identity-db-data:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${IDENTITY_DB_USER:-${KEYCLOAK_DB_USER:-identity}} -d ${IDENTITY_DB_NAME:-${KEYCLOAK_DB_NAME:-identity}}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
-  keycloak:
+  identity:
     image: ghcr.io/nexusquantum/nqrust-identity:latest
-    container_name: nqrust-keycloak
+    container_name: nqrust-identity
     restart: unless-stopped
-    command: start-dev
     depends_on:
-      - keycloak-db
+      identity-db:
+        condition: service_healthy
     environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-identity}
       KC_DB: postgres
-      KC_DB_USERNAME: ${KEYCLOAK_DB_USER:-identity}
-      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-identity}
-      KC_DB_URL_HOST: keycloak-db
-      KC_DB_URL_DATABASE: ${KEYCLOAK_DB_NAME:-identity}
+      KC_DB_USERNAME: ${IDENTITY_DB_USER:-${KEYCLOAK_DB_USER:-identity}}
+      KC_DB_PASSWORD: ${IDENTITY_DB_PASSWORD:-${KEYCLOAK_DB_PASSWORD:-identity}}
+      KC_DB_URL_HOST: identity-db
+      KC_DB_URL_DATABASE: ${IDENTITY_DB_NAME:-${KEYCLOAK_DB_NAME:-identity}}
       KC_HTTP_ENABLED: "true"
       KC_PROXY_HEADERS: xforwarded
       KC_HOSTNAME: ${KEYCLOAK_EXTERNAL_HOST:-http://localhost:8082}
       KC_HOSTNAME_STRICT: "false"
-      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
-      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-identity}
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+      KC_THEME_DEFAULT: ${KC_THEME_DEFAULT:-keycloakify-starter}
+      KC_THEME_WELCOME: ${KC_THEME_WELCOME:-keycloak}
+    command: >
+      start --optimized --http-enabled=true --hostname-strict=false
+      --spi-theme--default=${KC_THEME_DEFAULT:-keycloakify-starter}
+      --spi-theme--welcome-theme=${KC_THEME_WELCOME:-keycloak}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9000/health/ready > /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
 
   portal:
     image: ghcr.io/nexusquantum/nqrust-identity-portal:latest
@@ -59,4 +77,4 @@ services:
       - .env
 
 volumes:
-  keycloak-db-data:
+  identity-db-data:

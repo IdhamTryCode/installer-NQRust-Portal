@@ -31,13 +31,13 @@ pub fn render_home(frame: &mut Frame, app: &App) {
     frame.render_widget(header, chunks[0]);
 
     // Status panel
-    let kc_indicator = if app.keycloak_running { "●" } else { "○" };
-    let kc_status = if app.keycloak_running {
+    let identity_indicator = if app.identity_running { "●" } else { "○" };
+    let identity_status = if app.identity_running {
         "Running"
     } else {
         "Not installed"
     };
-    let kc_color = if app.keycloak_running {
+    let identity_status_color = if app.identity_running {
         Color::Green
     } else {
         Color::DarkGray
@@ -60,14 +60,18 @@ pub fn render_home(frame: &mut Frame, app: &App) {
         Line::from(vec![
             Span::raw("  "),
             Span::styled(
-                kc_indicator,
-                Style::default().fg(kc_color).add_modifier(Modifier::BOLD),
+                identity_indicator,
+                Style::default()
+                    .fg(identity_status_color)
+                    .add_modifier(Modifier::BOLD),
             ),
             Span::raw("  "),
-            Span::styled("Keycloak   ", Style::default().fg(Color::White)),
+            Span::styled("Identity   ", Style::default().fg(Color::White)),
             Span::styled(
-                kc_status,
-                Style::default().fg(kc_color).add_modifier(Modifier::BOLD),
+                identity_status,
+                Style::default()
+                    .fg(identity_status_color)
+                    .add_modifier(Modifier::BOLD),
             ),
         ]),
         Line::from(""),
@@ -110,7 +114,7 @@ pub fn render_home(frame: &mut Frame, app: &App) {
         .enumerate()
         .map(|(i, item)| {
             let label = match item {
-                HomeMenuItem::InstallKeycloak => "  Install Keycloak",
+                HomeMenuItem::InstallIdentity => "  Install Identity",
                 HomeMenuItem::InstallPortal => "  Install Portal",
                 HomeMenuItem::UpdateToken => "  Update GHCR Token",
                 HomeMenuItem::Exit => "  Exit",

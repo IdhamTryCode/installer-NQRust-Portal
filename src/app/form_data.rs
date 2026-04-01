@@ -1,10 +1,11 @@
-// Hardcoded defaults for Keycloak — NOT user-editable
-pub const KC_ADMIN_USERNAME: &str = "admin";
-pub const KC_ADMIN_PASSWORD: &str = "identity";
+// Hardcoded defaults for the Identity service — NOT user-editable in the form.
+// OAuth-related keys in `.env` keep their original names expected by the portal image.
+pub const IDENTITY_ADMIN_USERNAME: &str = "admin";
+pub const IDENTITY_ADMIN_PASSWORD: &str = "identity";
 #[allow(dead_code)]
-pub const KC_DB_NAME: &str = "identity";
-pub const KC_DB_USER: &str = "identity";
-pub const KC_DB_PASSWORD: &str = "identity";
+pub const IDENTITY_DB_NAME: &str = "identity";
+pub const IDENTITY_DB_USER: &str = "identity";
+pub const IDENTITY_DB_PASSWORD: &str = "identity";
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FocusState {
@@ -13,23 +14,23 @@ pub enum FocusState {
     CancelButton,
 }
 
-// Phase 1: Keycloak installation form
+// Phase 1: Identity installation form
 #[derive(Debug)]
-pub struct KeycloakFormData {
+pub struct IdentityFormData {
     pub hostname: String,
-    pub keycloak_port: String,
+    pub identity_port: String,
     pub portal_port: String,
     pub focus_state: FocusState,
     pub editing: bool,
     pub error_message: String,
 }
 
-impl KeycloakFormData {
+impl IdentityFormData {
     pub fn new() -> Self {
         Self {
             hostname: String::new(),
-            keycloak_port: "8082".to_string(),
-            portal_port: "8080".to_string(),
+            identity_port: "8082".to_string(),
+            portal_port: "8083".to_string(),
             focus_state: FocusState::Field(0),
             editing: false,
             error_message: String::new(),
@@ -43,7 +44,7 @@ impl KeycloakFormData {
     pub fn get_field_label(&self, idx: usize) -> &str {
         match idx {
             0 => "Hostname / IP",
-            1 => "Keycloak Port",
+            1 => "Identity Port",
             2 => "Portal Port",
             _ => "",
         }
@@ -52,7 +53,7 @@ impl KeycloakFormData {
     pub fn get_field_value(&self, idx: usize) -> &str {
         match idx {
             0 => &self.hostname,
-            1 => &self.keycloak_port,
+            1 => &self.identity_port,
             2 => &self.portal_port,
             _ => "",
         }
@@ -61,7 +62,7 @@ impl KeycloakFormData {
     pub fn get_field_value_mut(&mut self, idx: usize) -> Option<&mut String> {
         match idx {
             0 => Some(&mut self.hostname),
-            1 => Some(&mut self.keycloak_port),
+            1 => Some(&mut self.identity_port),
             2 => Some(&mut self.portal_port),
             _ => None,
         }
@@ -76,11 +77,11 @@ impl KeycloakFormData {
             self.error_message = "Hostname must not contain spaces".to_string();
             return false;
         }
-        match self.keycloak_port.trim().parse::<u16>() {
+        match self.identity_port.trim().parse::<u16>() {
             Ok(p) if p >= 1024 => {}
             _ => {
                 self.error_message =
-                    "Keycloak Port must be a valid port number (1024-65535)".to_string();
+                    "Identity Port must be a valid port number (1024-65535)".to_string();
                 return false;
             }
         }
@@ -92,8 +93,8 @@ impl KeycloakFormData {
                 return false;
             }
         }
-        if self.keycloak_port.trim() == self.portal_port.trim() {
-            self.error_message = "Keycloak Port and Portal Port must be different".to_string();
+        if self.identity_port.trim() == self.portal_port.trim() {
+            self.error_message = "Identity Port and Portal Port must be different".to_string();
             return false;
         }
         self.error_message.clear();
@@ -101,7 +102,7 @@ impl KeycloakFormData {
     }
 }
 
-impl Default for KeycloakFormData {
+impl Default for IdentityFormData {
     fn default() -> Self {
         Self::new()
     }
@@ -121,7 +122,7 @@ pub struct PortalFormData {
 impl PortalFormData {
     pub fn new() -> Self {
         Self {
-            realm_name: "myrealm".to_string(),
+            realm_name: "master".to_string(),
             client_id: "nqrust-portal".to_string(),
             client_secret: String::new(),
             focus_state: FocusState::Field(0),

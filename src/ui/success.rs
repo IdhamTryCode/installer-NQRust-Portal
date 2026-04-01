@@ -11,7 +11,7 @@ use crate::ui::{get_orange_accent, get_orange_color};
 pub struct SuccessView<'a> {
     pub logs: &'a [String],
     pub phase: &'a str,
-    pub keycloak_url: &'a str,
+    pub identity_admin_url: &'a str,
     pub portal_url: &'a str,
 }
 
@@ -29,8 +29,8 @@ pub fn render_success(frame: &mut Frame, view: &SuccessView<'_>) {
         ])
         .split(area);
 
-    let title_text = if view.phase == "Keycloak" {
-        "✅  Keycloak Installed!"
+    let title_text = if view.phase == "Identity" {
+        "✅  Identity Installed!"
     } else {
         "✅  Portal Installed!"
     };
@@ -49,20 +49,20 @@ pub fn render_success(frame: &mut Frame, view: &SuccessView<'_>) {
         .centered();
     frame.render_widget(title, chunks[0]);
 
-    let message = if view.phase == "Keycloak" {
+    let message = if view.phase == "Identity" {
         vec![
             Line::from(""),
             Line::from(Span::styled(
-                "Keycloak is running! Next steps:",
+                "Identity is running! Next steps:",
                 Style::default()
                     .fg(Color::Green)
                     .add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
             Line::from(vec![
-                Span::raw("  Keycloak Admin: "),
+                Span::raw("  Identity Admin: "),
                 Span::styled(
-                    view.keycloak_url,
+                    view.identity_admin_url,
                     Style::default()
                         .fg(Color::Cyan)
                         .add_modifier(Modifier::UNDERLINED),
@@ -70,7 +70,7 @@ pub fn render_success(frame: &mut Frame, view: &SuccessView<'_>) {
             ]),
             Line::from(""),
             Line::from(Span::styled(
-                "  1. Log in to Keycloak Admin",
+                "  1. Log in to Identity Admin",
                 Style::default().fg(Color::White),
             )),
             Line::from(Span::styled(
@@ -109,9 +109,9 @@ pub fn render_success(frame: &mut Frame, view: &SuccessView<'_>) {
                 ),
             ]),
             Line::from(vec![
-                Span::raw("  Keycloak: "),
+                Span::raw("  Identity: "),
                 Span::styled(
-                    view.keycloak_url,
+                    view.identity_admin_url,
                     Style::default()
                         .fg(Color::Cyan)
                         .add_modifier(Modifier::UNDERLINED),
@@ -125,7 +125,7 @@ pub fn render_success(frame: &mut Frame, view: &SuccessView<'_>) {
         Block::default()
             .borders(Borders::ALL)
             .border_style(Style::default().fg(get_orange_accent()))
-            .title(if view.phase == "Keycloak" {
+            .title(if view.phase == "Identity" {
                 "Next Steps"
             } else {
                 "Access URLs"
@@ -160,7 +160,7 @@ pub fn render_success(frame: &mut Frame, view: &SuccessView<'_>) {
     );
     frame.render_widget(logs_widget, chunks[2]);
 
-    let help_text = if view.phase == "Keycloak" {
+    let help_text = if view.phase == "Identity" {
         "I Install Portal   Q Quit   Ctrl+C Quit"
     } else {
         "Press Ctrl+C to exit"
