@@ -45,10 +45,12 @@ pub struct App {
     pub identity_running: bool,
     pub portal_running: bool,
     pub install_phase: String,
+    #[allow(dead_code)]
+    pub is_airgapped: bool,
 }
 
 impl App {
-    pub fn new() -> Self {
+    pub fn new(is_airgapped: bool) -> Self {
         let token_from_env = env::var("GHCR_TOKEN")
             .or_else(|_| env::var("GITHUB_TOKEN"))
             .or_else(|_| env::var("GH_TOKEN"))
@@ -61,7 +63,8 @@ impl App {
             registry_form.token = token;
         }
 
-        let initial_state = if initial_token.is_some() {
+        // In airgapped mode, images are already loaded locally — skip registry login
+        let initial_state = if is_airgapped || initial_token.is_some() {
             AppState::Home
         } else {
             AppState::RegistrySetup
@@ -86,6 +89,7 @@ impl App {
             identity_running,
             portal_running,
             install_phase: String::new(),
+            is_airgapped,
         }
     }
 
