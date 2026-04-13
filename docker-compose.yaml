@@ -58,7 +58,7 @@ services:
       KC_THEME_DEFAULT: ${KC_THEME_DEFAULT:-keycloakify-starter}
       KC_THEME_WELCOME: ${KC_THEME_WELCOME:-keycloak}
     command: >
-      start --optimized --http-enabled=true --hostname-strict=false
+      start --http-enabled=true --hostname-strict=false
       --features=admin-fine-grained-authz,token-exchange,docker,scripts
       --spi-theme--default=${KC_THEME_DEFAULT:-keycloakify-starter}
       --spi-theme--welcome-theme=${KC_THEME_WELCOME:-keycloak}
