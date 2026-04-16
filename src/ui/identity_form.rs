@@ -99,6 +99,11 @@ pub fn render_identity_form(frame: &mut Frame, app: &App) {
     frame.render_widget(form_widget, chunks[1]);
 
     // Hardcoded defaults info
+    let detected_host = if app.detected_hostname.is_empty() {
+        "<auto-detect on install>".to_string()
+    } else {
+        app.detected_hostname.clone()
+    };
     let info_lines = vec![
         Line::from(Span::styled(
             "  Hardcoded defaults (not editable):",
@@ -114,7 +119,10 @@ pub fn render_identity_form(frame: &mut Frame, app: &App) {
             ),
             Style::default().fg(Color::DarkGray),
         )),
-        Line::from(""),
+        Line::from(Span::styled(
+            format!("  Hostname (auto-detected): {}", detected_host),
+            Style::default().fg(Color::DarkGray),
+        )),
     ];
     let info_widget = Paragraph::new(info_lines).block(
         Block::default()

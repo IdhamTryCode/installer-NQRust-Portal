@@ -6,6 +6,7 @@ pub const ENV_TEMPLATE: &str = include_str!("../env_template");
 pub const COMPOSE_TEMPLATE: &str = include_str!("../docker-compose.yaml");
 pub const TRAEFIK_DYNAMIC_YML: &str = include_str!("../traefik/dynamic.yml");
 pub const DB_INIT_SQL: &str = include_str!("../db/init.sql");
+pub const GENERATE_CERT_SCRIPT: &str = include_str!("../scripts/generate-cert.sh");
 
 #[allow(dead_code)]
 pub fn find_file(filename: &str) -> bool {

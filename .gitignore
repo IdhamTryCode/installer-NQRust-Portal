@@ -7,6 +7,9 @@ config.yaml
 .ghcr_token
 /data
 
+# Generated TLS certificates (per-host, never commit)
+/certs/
+
 # IDE
 .vscode/
 .idea/

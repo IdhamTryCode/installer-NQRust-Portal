@@ -85,3 +85,13 @@ http:
       loadBalancer:
         servers:
           - url: http://identity:8080
+
+tls:
+  certificates:
+    - certFile: /etc/traefik/certs/server.crt
+      keyFile: /etc/traefik/certs/server.key
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /etc/traefik/certs/server.crt
+        keyFile: /etc/traefik/certs/server.key

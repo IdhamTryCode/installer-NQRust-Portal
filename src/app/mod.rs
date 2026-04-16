@@ -46,6 +46,7 @@ pub struct App {
     pub portal_running: bool,
     pub install_phase: String,
     pub is_airgapped: bool,
+    pub detected_hostname: String,
 }
 
 impl App {
@@ -70,6 +71,10 @@ impl App {
         };
 
         let (identity_running, portal_running) = Self::detect_containers_sync();
+        let detected_hostname = Self::detect_host_ip().unwrap_or_else(|| "localhost".to_string());
+
+        let mut identity_form = IdentityFormData::new();
+        identity_form.hostname = detected_hostname.clone();
 
         Self {
             running: true,
@@ -79,7 +84,7 @@ impl App {
             current_service: String::new(),
             total_services: 3,
             completed_services: 0,
-            identity_form: IdentityFormData::new(),
+            identity_form,
             portal_form: PortalFormData::new(),
             registry_form,
             registry_status: None,
@@ -89,7 +94,23 @@ impl App {
             portal_running,
             install_phase: String::new(),
             is_airgapped,
+            detected_hostname,
         }
+    }
+
+    /// Detects the primary host IP address using `hostname -I`.
+    /// Linux-only. Returns `None` if detection fails.
+    fn detect_host_ip() -> Option<String> {
+        let output = std::process::Command::new("hostname").arg("-I").output().ok()?;
+        if !output.status.success() {
+            return None;
+        }
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        stdout
+            .split_whitespace()
+            .next()
+            .map(|s| s.to_string())
+            .filter(|s| !s.is_empty())
     }
 
     fn detect_containers_sync() -> (bool, bool) {
@@ -161,6 +182,17 @@ impl App {
                     self.install_phase = "Identity".to_string();
                     self.logs
                         .push("🚀 Starting Identity & Portal installation...".to_string());
+                    let _ = self.redraw(&mut terminal);
+
+                    match self.generate_tls_cert(&mut terminal).await {
+                        Ok(_) => {}
+                        Err(e) => {
+                            self.state =
+                                AppState::Error(format!("TLS certificate generation failed: {}", e));
+                            continue;
+                        }
+                    }
+
                     let result = self
                         .run_docker_compose_services(
                             &["traefik", "identity-db", "identity", "portal"],
@@ -253,7 +285,9 @@ impl App {
                             if let Some(item) = items.get(self.menu_selection) {
                                 match item {
                                     HomeMenuItem::InstallIdentity => {
-                                        self.identity_form = IdentityFormData::new();
+                                        let mut form = IdentityFormData::new();
+                                        form.hostname = self.detected_hostname.clone();
+                                        self.identity_form = form;
                                         self.state = AppState::IdentityForm;
                                     }
                                     HomeMenuItem::InstallPortal => {
@@ -699,7 +733,7 @@ impl App {
 
         let mut content = utils::ENV_TEMPLATE.to_string();
         content = content.replace("{{NEXTAUTH_SECRET}}", &nextauth_secret);
-        content = content.replace("{{HOSTNAME}}", &self.identity_form.hostname);
+        content = content.replace("{{HOSTNAME}}", &self.detected_hostname);
         content = content.replace("{{IDENTITY_PORT}}", &self.identity_form.identity_port);
         content = content.replace("{{PORTAL_PORT}}", &self.identity_form.portal_port);
         // PORTAL_PORT / IDENTITY_PORT: used by docker-compose and portal .env
@@ -721,31 +755,23 @@ impl App {
             return Err(eyre!(".env file not found. Please install Identity first."));
         };
 
-        // Extract hostname and identity port from the external host URL line in `.env`
-        let hostname = self.identity_form.hostname.clone();
-        let identity_port = self.identity_form.identity_port.clone();
-
-        // Try to read from existing .env if identity_form is empty
-        let (hostname, identity_port) = if hostname.is_empty() {
-            let extracted = existing
-                .lines()
-                .find(|l| l.starts_with("KEYCLOAK_EXTERNAL_HOST="))
-                .and_then(|l| {
-                    l.strip_prefix("KEYCLOAK_EXTERNAL_HOST=https://")
-                        .or_else(|| l.strip_prefix("KEYCLOAK_EXTERNAL_HOST=http://"))
-                })
-                .map(|s| {
-                    let parts: Vec<&str> = s.splitn(2, ':').collect();
-                    (
-                        parts.first().unwrap_or(&"localhost").to_string(),
-                        parts.get(1).unwrap_or(&"8082").to_string(),
-                    )
-                })
-                .unwrap_or(("localhost".to_string(), "8082".to_string()));
-            extracted
-        } else {
-            (hostname, identity_port)
-        };
+        // Hostname and identity port are sourced from the existing .env (written in Phase 1).
+        // This keeps Phase 2 self-contained: the user doesn't need to re-enter them.
+        let (hostname, identity_port) = existing
+            .lines()
+            .find(|l| l.starts_with("KEYCLOAK_EXTERNAL_HOST="))
+            .and_then(|l| {
+                l.strip_prefix("KEYCLOAK_EXTERNAL_HOST=https://")
+                    .or_else(|| l.strip_prefix("KEYCLOAK_EXTERNAL_HOST=http://"))
+            })
+            .map(|s| {
+                let parts: Vec<&str> = s.splitn(2, ':').collect();
+                (
+                    parts.first().unwrap_or(&"localhost").to_string(),
+                    parts.get(1).unwrap_or(&"8082").to_string(),
+                )
+            })
+            .unwrap_or_else(|| (self.detected_hostname.clone(), "8082".to_string()));
 
         let realm = &self.portal_form.realm_name;
         let client_id = &self.portal_form.client_id;
@@ -778,6 +804,87 @@ impl App {
 
         fs::write(env_path, new_lines.join("\n"))?;
         Ok(())
+    }
+
+    /// Writes the embedded generate-cert.sh script to `scripts/generate-cert.sh`
+    /// inside the project root, if not already present. Always sets 0755 perms on Unix.
+    fn ensure_cert_script(&self, root: &std::path::Path) -> Result<PathBuf> {
+        let scripts_dir = root.join("scripts");
+        fs::create_dir_all(&scripts_dir)?;
+        let script_path = scripts_dir.join("generate-cert.sh");
+        if !script_path.exists() {
+            fs::write(&script_path, utils::GENERATE_CERT_SCRIPT)?;
+        }
+        #[cfg(unix)]
+        {
+            let perms = std::fs::Permissions::from_mode(0o755);
+            fs::set_permissions(&script_path, perms)?;
+        }
+        Ok(script_path)
+    }
+
+    /// Invokes the embedded generate-cert.sh script via bash. Skips if certs already exist.
+    /// The script itself is idempotent (exits 0 if ./certs/server.{crt,key} already exist).
+    async fn generate_tls_cert(&mut self, terminal: &mut DefaultTerminal) -> Result<()> {
+        let root = utils::project_root();
+        let script_path = self.ensure_cert_script(&root)?;
+
+        self.add_log(&format!(
+            "🔐 Generating TLS certificate for {}...",
+            self.detected_hostname
+        ));
+        let _ = self.redraw(terminal);
+
+        let mut cmd = Command::new("bash");
+        cmd.arg(&script_path)
+            .arg(&self.detected_hostname)
+            .current_dir(&root)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        let mut child = cmd.spawn()?;
+        let stdout = child.stdout.take().expect("Failed to capture stdout");
+        let stderr = child.stderr.take().expect("Failed to capture stderr");
+        let mut stdout_reader = BufReader::new(stdout).lines();
+        let mut stderr_reader = BufReader::new(stderr).lines();
+
+        loop {
+            tokio::select! {
+                result = stdout_reader.next_line() => {
+                    match result {
+                        Ok(Some(line)) => {
+                            if !line.trim().is_empty() {
+                                self.add_log(&format!("ℹ️  {}", line));
+                                let _ = self.redraw(terminal);
+                            }
+                        }
+                        Ok(None) => break,
+                        Err(e) => { self.add_log(&format!("❌ stdout error: {}", e)); break; }
+                    }
+                }
+                result = stderr_reader.next_line() => {
+                    match result {
+                        Ok(Some(line)) => {
+                            if !line.trim().is_empty() {
+                                self.add_log(&format!("ℹ️  {}", line));
+                                let _ = self.redraw(terminal);
+                            }
+                        }
+                        Ok(None) => break,
+                        Err(e) => { self.add_log(&format!("❌ stderr error: {}", e)); break; }
+                    }
+                }
+            }
+        }
+
+        let status = child.wait().await?;
+        if status.success() {
+            self.add_log("✅ TLS certificate ready");
+            let _ = self.redraw(terminal);
+            Ok(())
+        } else {
+            Err(eyre!("generate-cert.sh exited with non-zero status"))
+        }
     }
 
     async fn run_docker_compose_services(
@@ -999,10 +1106,10 @@ impl App {
     }
 
     fn identity_admin_url(&self) -> String {
-        let hostname = if self.identity_form.hostname.is_empty() {
+        let hostname = if self.detected_hostname.is_empty() {
             "localhost".to_string()
         } else {
-            self.identity_form.hostname.clone()
+            self.detected_hostname.clone()
         };
         let port = if self.identity_form.identity_port.is_empty() {
             "8082".to_string()
@@ -1013,10 +1120,10 @@ impl App {
     }
 
     fn portal_url(&self) -> String {
-        let hostname = if self.identity_form.hostname.is_empty() {
+        let hostname = if self.detected_hostname.is_empty() {
             "localhost".to_string()
         } else {
-            self.identity_form.hostname.clone()
+            self.detected_hostname.clone()
         };
         let port = if self.identity_form.portal_port.is_empty() {
             "8083".to_string()

@@ -38,45 +38,34 @@ impl IdentityFormData {
     }
 
     pub fn get_total_fields(&self) -> usize {
-        3
+        2
     }
 
     pub fn get_field_label(&self, idx: usize) -> &str {
         match idx {
-            0 => "Hostname / IP",
-            1 => "Identity Port",
-            2 => "Portal Port",
+            0 => "Identity Port",
+            1 => "Portal Port",
             _ => "",
         }
     }
 
     pub fn get_field_value(&self, idx: usize) -> &str {
         match idx {
-            0 => &self.hostname,
-            1 => &self.identity_port,
-            2 => &self.portal_port,
+            0 => &self.identity_port,
+            1 => &self.portal_port,
             _ => "",
         }
     }
 
     pub fn get_field_value_mut(&mut self, idx: usize) -> Option<&mut String> {
         match idx {
-            0 => Some(&mut self.hostname),
-            1 => Some(&mut self.identity_port),
-            2 => Some(&mut self.portal_port),
+            0 => Some(&mut self.identity_port),
+            1 => Some(&mut self.portal_port),
             _ => None,
         }
     }
 
     pub fn validate(&mut self) -> bool {
-        if self.hostname.trim().is_empty() {
-            self.error_message = "Hostname / IP is required".to_string();
-            return false;
-        }
-        if self.hostname.contains(' ') {
-            self.error_message = "Hostname must not contain spaces".to_string();
-            return false;
-        }
         match self.identity_port.trim().parse::<u16>() {
             Ok(p) if p >= 1024 => {}
             _ => {
