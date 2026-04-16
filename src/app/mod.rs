@@ -101,7 +101,10 @@ impl App {
     /// Detects the primary host IP address using `hostname -I`.
     /// Linux-only. Returns `None` if detection fails.
     fn detect_host_ip() -> Option<String> {
-        let output = std::process::Command::new("hostname").arg("-I").output().ok()?;
+        let output = std::process::Command::new("hostname")
+            .arg("-I")
+            .output()
+            .ok()?;
         if !output.status.success() {
             return None;
         }
@@ -187,8 +190,10 @@ impl App {
                     match self.generate_tls_cert(&mut terminal).await {
                         Ok(_) => {}
                         Err(e) => {
-                            self.state =
-                                AppState::Error(format!("TLS certificate generation failed: {}", e));
+                            self.state = AppState::Error(format!(
+                                "TLS certificate generation failed: {}",
+                                e
+                            ));
                             continue;
                         }
                     }
