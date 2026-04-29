@@ -31,6 +31,10 @@ fi
 PAYLOAD_FILE="${BUILD_DIR}/payload.tar.gz"
 PAYLOAD_MARKER="__NQRUST_PAYLOAD__"
 
+PKG_VERSION="$(awk -F\" '/^version[[:space:]]*=/ {print $2; exit}' "${PROJECT_ROOT}/Cargo.toml")"
+PKG_ARCH="amd64"
+OUTPUT_NAME="nqrust-portal-airgapped-installer-${PKG_VERSION}-${PKG_ARCH}"
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -94,7 +98,7 @@ echo ""
 # Step 4: Create self-extracting binary
 log_step "Step 4/5: Creating self-extracting binary..."
 
-OUTPUT_FILE="${PROJECT_ROOT}/nqrust-portal-airgapped"
+OUTPUT_FILE="${PROJECT_ROOT}/${OUTPUT_NAME}"
 
 if [ -f "${OUTPUT_FILE}" ]; then
     log_warn "Removing existing airgapped binary..."
@@ -114,12 +118,13 @@ echo ""
 # Step 5: Generate checksums
 log_step "Step 5/5: Generating checksums..."
 
+CHECKSUM_FILE="${PROJECT_ROOT}/${OUTPUT_NAME}.sha256"
 if command -v sha256sum &> /dev/null; then
     CHECKSUM=$(sha256sum "${OUTPUT_FILE}" | cut -d' ' -f1)
-    echo "${CHECKSUM}  nqrust-portal-airgapped" > "${PROJECT_ROOT}/nqrust-portal-airgapped.sha256"
+    echo "${CHECKSUM}  ${OUTPUT_NAME}" > "${CHECKSUM_FILE}"
 elif command -v shasum &> /dev/null; then
     CHECKSUM=$(shasum -a 256 "${OUTPUT_FILE}" | cut -d' ' -f1)
-    echo "${CHECKSUM}  nqrust-portal-airgapped" > "${PROJECT_ROOT}/nqrust-portal-airgapped.sha256"
+    echo "${CHECKSUM}  ${OUTPUT_NAME}" > "${CHECKSUM_FILE}"
 else
     log_warn "No SHA256 tool found, skipping checksum"
     CHECKSUM="unavailable"
@@ -143,7 +148,7 @@ log_info "  - Marker: 16 bytes"
 log_info "  - Total: ${OUTPUT_SIZE}"
 echo ""
 log_info "Next steps:"
-log_info "  1. Verify: sha256sum -c nqrust-portal-airgapped.sha256"
+log_info "  1. Verify: sha256sum -c ${OUTPUT_NAME}.sha256"
 log_info "  2. Transfer to airgapped machine (USB/SCP/etc)"
-log_info "  3. Run: ./nqrust-portal-airgapped"
+log_info "  3. Run: ./${OUTPUT_NAME}"
 echo ""

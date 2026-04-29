@@ -122,7 +122,7 @@ pub fn extract_payload() -> Result<std::path::PathBuf> {
             "Failed to extract payload: {}\n\n\
              Troubleshooting:\n\
              - Payload may be corrupted during transfer\n\
-             - Verify binary checksum: sha256sum -c nqrust-portal-airgapped.sha256\n\
+             - Verify binary checksum: sha256sum -c <binary>.sha256\n\
              - Check disk space: df -h /tmp\n\
              - Re-download or re-transfer the binary\n\
              Original error: {}",

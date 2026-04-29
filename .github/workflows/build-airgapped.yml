@@ -52,6 +52,14 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GHCR_TOKEN }}
 
+      - name: Resolve artifact name
+        id: artifact
+        run: |
+          VERSION=$(awk -F\" '/^version[[:space:]]*=/ {print $2; exit}' Cargo.toml)
+          NAME="nqrust-portal-airgapped-installer-${VERSION}-amd64"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
+
       - name: Build airgapped binary
         run: |
           chmod +x scripts/airgapped/build-single-binary.sh
@@ -60,27 +68,29 @@ jobs:
           ./scripts/airgapped/build-single-binary.sh --force-refresh
 
       - name: Validate binary
+        env:
+          ARTIFACT: ${{ steps.artifact.outputs.name }}
         run: |
           echo "Validating airgapped binary..."
 
-          if [ ! -f nqrust-portal-airgapped ]; then
-            echo "❌ Binary not found!"
+          if [ ! -f "${ARTIFACT}" ]; then
+            echo "❌ Binary not found: ${ARTIFACT}"
             exit 1
           fi
 
-          SIZE=$(stat -c%s nqrust-portal-airgapped)
+          SIZE=$(stat -c%s "${ARTIFACT}")
           echo "Binary size: $(numfmt --to=iec-i --suffix=B $SIZE)"
           if [ $SIZE -lt 100000000 ]; then
             echo "❌ Binary too small ($SIZE bytes), likely missing payload"
             exit 1
           fi
 
-          if ! grep -q "__NQRUST_PAYLOAD__" nqrust-portal-airgapped; then
+          if ! grep -q "__NQRUST_PAYLOAD__" "${ARTIFACT}"; then
             echo "❌ Payload marker not found in binary"
             exit 1
           fi
 
-          if sha256sum -c nqrust-portal-airgapped.sha256; then
+          if sha256sum -c "${ARTIFACT}.sha256"; then
             echo "✅ Checksum verification passed"
           else
             echo "❌ Checksum verification failed"
@@ -90,6 +100,8 @@ jobs:
           echo "✅ Binary validation passed"
 
       - name: Generate build info
+        env:
+          ARTIFACT: ${{ steps.artifact.outputs.name }}
         run: |
           cat > build-info.txt <<EOF
           Build Information
@@ -101,9 +113,9 @@ jobs:
 
           Binary Details
           ==============
-          File: nqrust-portal-airgapped
-          Size: $(stat -c%s nqrust-portal-airgapped | numfmt --to=iec-i --suffix=B)
-          SHA256: $(cat nqrust-portal-airgapped.sha256)
+          File: ${ARTIFACT}
+          Size: $(stat -c%s "${ARTIFACT}" | numfmt --to=iec-i --suffix=B)
+          SHA256: $(cat "${ARTIFACT}.sha256")
 
           Included Docker Images
           ======================
@@ -111,10 +123,10 @@ jobs:
 
           Installation
           ============
-          1. Download nqrust-portal-airgapped
-          2. Verify: sha256sum -c nqrust-portal-airgapped.sha256
-          3. Make executable: chmod +x nqrust-portal-airgapped
-          4. Run: ./nqrust-portal-airgapped
+          1. Download ${ARTIFACT}
+          2. Verify: sha256sum -c ${ARTIFACT}.sha256
+          3. Make executable: chmod +x ${ARTIFACT}
+          4. Run: ./${ARTIFACT}
           EOF
 
       - name: Upload to release
@@ -122,8 +134,8 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            nqrust-portal-airgapped
-            nqrust-portal-airgapped.sha256
+            ${{ steps.artifact.outputs.name }}
+            ${{ steps.artifact.outputs.name }}.sha256
             build-info.txt
             build/images/manifest.json
         env:
@@ -134,20 +146,23 @@ jobs:
         with:
           name: airgapped-binary-${{ github.ref_name }}-${{ github.sha }}
           path: |
-            nqrust-portal-airgapped
-            nqrust-portal-airgapped.sha256
+            ${{ steps.artifact.outputs.name }}
+            ${{ steps.artifact.outputs.name }}.sha256
             build-info.txt
             build/images/manifest.json
             build/images/SHA256SUMS
           retention-days: 30
 
       - name: Summary
+        env:
+          ARTIFACT: ${{ steps.artifact.outputs.name }}
         run: |
           echo "## 🎉 Airgapped Binary Build Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Build Information" >> $GITHUB_STEP_SUMMARY
-          echo "- **Binary Size**: $(stat -c%s nqrust-portal-airgapped | numfmt --to=iec-i --suffix=B)" >> $GITHUB_STEP_SUMMARY
-          echo "- **SHA256**: \`$(cat nqrust-portal-airgapped.sha256 | cut -d' ' -f1)\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Artifact**: \`${ARTIFACT}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Binary Size**: $(stat -c%s "${ARTIFACT}" | numfmt --to=iec-i --suffix=B)" >> $GITHUB_STEP_SUMMARY
+          echo "- **SHA256**: \`$(cat "${ARTIFACT}.sha256" | cut -d' ' -f1)\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Git Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Included Images" >> $GITHUB_STEP_SUMMARY

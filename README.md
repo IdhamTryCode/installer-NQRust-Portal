@@ -101,25 +101,27 @@ docker login ghcr.io
 ./scripts/airgapped/build-single-binary.sh
 ```
 
+The build produces `nqrust-portal-airgapped-installer-<version>-amd64` (e.g. `nqrust-portal-airgapped-installer-0.0.1-amd64`) plus its `.sha256` checksum file. Only `linux/amd64` (x86_64 — both Intel and AMD CPUs) is currently published.
+
 **Transfer to airgapped machine** (via USB/SCP/physical media):
 ```bash
-cp nqrust-portal-airgapped /path/to/transfer/
-cp nqrust-portal-airgapped.sha256 /path/to/transfer/
+cp nqrust-portal-airgapped-installer-0.0.1-amd64 /path/to/transfer/
+cp nqrust-portal-airgapped-installer-0.0.1-amd64.sha256 /path/to/transfer/
 ```
 
 **On airgapped machine (no internet needed):**
 ```bash
 # 1. Verify checksum
-sha256sum -c nqrust-portal-airgapped.sha256
+sha256sum -c nqrust-portal-airgapped-installer-0.0.1-amd64.sha256
 
 # 2. Make executable
-chmod +x nqrust-portal-airgapped
+chmod +x nqrust-portal-airgapped-installer-0.0.1-amd64
 
 # 3. Run installer (auto-extracts and loads Docker images)
-./nqrust-portal-airgapped
+./nqrust-portal-airgapped-installer-0.0.1-amd64
 ```
 
-Or download the pre-built airgapped binary directly from the [Releases](https://github.com/NexusQuantum/installer-NQRust-Portal/releases) page (`nqrust-portal-airgapped`).
+Or download the pre-built airgapped binary directly from the [Releases](https://github.com/NexusQuantum/installer-NQRust-Portal/releases) page.
 
 > **CI / releases:** The `Build Airgapped Binary` workflow (`.github/workflows/build-airgapped.yml`) logs in to GHCR using the repository secret **`GHCR_TOKEN`** (a GitHub PAT with `read:packages`). Add it under *Settings → Secrets and variables → Actions* or that job will fail when pulling images; the `.deb` **Release** workflow does not depend on it.
 

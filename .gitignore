@@ -33,6 +33,8 @@ Thumbs.db
 /build/
 nqrust-portal-airgapped
 nqrust-portal-airgapped.sha256
+nqrust-portal-airgapped-installer-*
+nqrust-portal-airgapped-installer-*.sha256
 
 # Local backups
 backup*/
