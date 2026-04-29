@@ -55,12 +55,28 @@ jobs:
       - name: Resolve artifact name
         id: artifact
         run: |
-          VERSION=$(awk -F\" '/^version[[:space:]]*=/ {print $2; exit}' Cargo.toml)
+          # Priority: release tag > workflow_dispatch input > nearest git tag > Cargo.toml
+          RAW=""
+          if [ "${{ github.event_name }}" = "release" ]; then
+            RAW="${{ github.event.release.tag_name }}"
+          elif [ -n "${{ github.event.inputs.tag }}" ] && [ "${{ github.event.inputs.tag }}" != "latest" ]; then
+            RAW="${{ github.event.inputs.tag }}"
+          else
+            RAW="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+          fi
+          if [ -z "${RAW}" ]; then
+            RAW="$(awk -F\" '/^version[[:space:]]*=/ {print $2; exit}' Cargo.toml)"
+          fi
+          VERSION="${RAW#v}"
           NAME="nqrust-portal-airgapped-installer-${VERSION}-amd64"
+          echo "Resolved version: ${VERSION}"
+          echo "Artifact name:    ${NAME}"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "name=${NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Build airgapped binary
+        env:
+          VERSION: ${{ steps.artifact.outputs.version }}
         run: |
           chmod +x scripts/airgapped/build-single-binary.sh
           chmod +x scripts/airgapped/save-images.sh

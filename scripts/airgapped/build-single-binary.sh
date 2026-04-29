@@ -31,7 +31,21 @@ fi
 PAYLOAD_FILE="${BUILD_DIR}/payload.tar.gz"
 PAYLOAD_MARKER="__NQRUST_PAYLOAD__"
 
-PKG_VERSION="$(awk -F\" '/^version[[:space:]]*=/ {print $2; exit}' "${PROJECT_ROOT}/Cargo.toml")"
+resolve_version() {
+    if [ -n "${VERSION:-}" ]; then
+        echo "${VERSION#v}"; return
+    fi
+    if git -C "${PROJECT_ROOT}" rev-parse --git-dir >/dev/null 2>&1; then
+        local tag
+        tag="$(git -C "${PROJECT_ROOT}" describe --tags --abbrev=0 2>/dev/null || true)"
+        if [ -n "${tag}" ]; then
+            echo "${tag#v}"; return
+        fi
+    fi
+    awk -F\" '/^version[[:space:]]*=/ {print $2; exit}' "${PROJECT_ROOT}/Cargo.toml"
+}
+
+PKG_VERSION="$(resolve_version)"
 PKG_ARCH="amd64"
 OUTPUT_NAME="nqrust-portal-airgapped-installer-${PKG_VERSION}-${PKG_ARCH}"
 
